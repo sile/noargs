@@ -1,14 +1,19 @@
-use std::{collections::VecDeque, str::FromStr};
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct HelpBuilder {}
 
 #[derive(Debug)]
-pub struct Args {
-    raw_args: VecDeque<String>,
-    // TDOO: version, app_name
-    need_positional_args: bool,
+pub struct RawArg {
+    pub text: String,
+    pub consumed: bool,
+    pub positional: bool,
+}
 
+#[derive(Debug)]
+pub struct Args {
+    raw_args: Vec<RawArg>,
+    // TDOO: version, app_name
     #[expect(dead_code)]
     help_builder: Option<HelpBuilder>,
 }
@@ -23,9 +28,16 @@ impl Args {
         I: IntoIterator<Item = T>,
         T: Into<String>,
     {
+        // TODO: handle `--`
         Self {
-            raw_args: raw_args.into_iter().map(|a| a.into()).collect(),
-            need_positional_args: false,
+            raw_args: raw_args
+                .into_iter()
+                .map(|a| RawArg {
+                    text: a.into(),
+                    consumed: false,
+                    positional: false,
+                })
+                .collect(),
             help_builder: None,
         }
     }
@@ -34,6 +46,11 @@ impl Args {
 
     pub fn with_version(self) -> Self {
         todo!()
+    }
+
+    fn next_positional_raw_arg(&mut self) -> Option<&mut RawArg> {
+        let offset = self.raw_args.iter().position(|a| a.positional).unwrap_or(0);
+        self.raw_args.iter_mut().skip(offset).find(|a| !a.consumed)
     }
 
     pub fn arg(&mut self, name: &str) -> PositionalArg {
@@ -47,7 +64,7 @@ impl Args {
     // TODO: option(), subcommand()
 
     fn try_finish(&self) -> bool {
-        self.raw_args.is_empty()
+        self.raw_args.iter().all(|a| a.consumed)
     }
 
     pub fn finish(self) {
@@ -57,7 +74,12 @@ impl Args {
 
         println!(
             "[error] there are unconsumed argument: {}",
-            self.raw_args.into_iter().collect::<Vec<_>>().join(" ")
+            self.raw_args
+                .iter()
+                .filter(|a| !a.consumed)
+                .map(|a| a.text.clone())
+                .collect::<Vec<_>>()
+                .join(" ")
         );
         std::process::exit(1);
     }
@@ -111,30 +133,27 @@ impl<'a> Flag<'a> {
     }
 
     pub fn is_present(self) -> bool {
-        assert!(!self.args.need_positional_args); // TODO
-
         // TODO: duplicate check
         let mut present = false;
-        let mut skip = false;
-        self.args.raw_args.retain(|arg| {
-            if arg == "--" || skip {
-                skip = true;
-                return true;
+        for arg in &mut self.args.raw_args {
+            if arg.consumed {
+                continue;
             };
+            if arg.positional {
+                break;
+            }
 
             // TODO: optimize
-            if *arg == format!("--{}", self.name) {
+            if arg.text == format!("--{}", self.name) {
                 present = true;
-                return false;
-            }
-            if let Some(short) = self.short_name {
-                if *arg == format!("-{}", short) {
+                arg.consumed = true;
+            } else if let Some(short) = self.short_name {
+                if arg.text == format!("-{}", short) {
                     present = true;
-                    return false;
+                    arg.consumed = true;
                 }
             }
-            true
-        });
+        }
         present
     }
 }
@@ -163,15 +182,15 @@ impl<'a> PositionalArg<'a> {
     where
         T: FromStr,
     {
-        // TODO: handle "--"
-
-        self.args.need_positional_args = true;
-        let Some(arg) = self.args.raw_args.pop_front() else {
+        let Some(arg) = self.args.next_positional_raw_arg() else {
             return Ok(None);
         };
-        arg.parse()
-            .map(Some)
-            .map_err(|error| ParseError { arg, error })
+        arg.positional = true;
+        arg.consumed = true;
+        arg.text.parse().map(Some).map_err(|error| ParseError {
+            arg: arg.text.clone(),
+            error,
+        })
     }
 
     pub fn parse<T>(mut self) -> T
