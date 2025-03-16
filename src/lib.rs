@@ -191,6 +191,11 @@ impl<'a> PositionalArg<'a> {
         OptionalPositionalArg { inner: self }
     }
 
+    pub fn help(self, _help: &str) -> Self {
+        // TODO
+        self
+    }
+
     // TODO: multi().at_least(1).at_most(10)
 
     fn try_parse<T>(&mut self) -> Result<Option<T>, ParseError<T::Err>>
@@ -291,6 +296,11 @@ impl<'a> OptionArg<'a> {
         self
     }
 
+    pub fn help(self, _help: &str) -> Self {
+        // TODO
+        self
+    }
+
     // TODO: required()
     // TODO: multi().at_least(1).at_most(10)
 
@@ -304,6 +314,7 @@ impl<'a> OptionArg<'a> {
             }
 
             // TODO: optimize
+            // TODO: `--key=value` syntax
             arg.text == format!("--{}", self.name)
                 || self
                     .short_name
