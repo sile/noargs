@@ -68,6 +68,10 @@ impl Args {
         Flag::new(self, name)
     }
 
+    pub fn option(&mut self, name: &str) -> OptionArg {
+        OptionArg::new(self, name)
+    }
+
     // TODO: option(), subcommand()
 
     fn try_finish(&self) -> bool {
@@ -80,7 +84,7 @@ impl Args {
         }
 
         println!(
-            "[error] there are unconsumed argument: {}",
+            "[error] there are unknown or unconsumed arguments: {}",
             self.raw_args
                 .iter()
                 .filter(|a| !a.consumed)
@@ -223,6 +227,87 @@ impl<'a> PositionalArg<'a> {
 }
 
 #[derive(Debug)]
+pub struct OptionArg<'a> {
+    args: &'a mut Args,
+    name: String,
+    short_name: Option<char>,
+    // TODO: value_name
+}
+
+impl<'a> OptionArg<'a> {
+    fn new(args: &'a mut Args, name: &str) -> Self {
+        Self {
+            args,
+            name: name.to_owned(),
+            short_name: None,
+        }
+    }
+
+    pub fn short(mut self, name: char) -> Self {
+        self.short_name = Some(name);
+        self
+    }
+
+    // TODO: required()
+    // TODO: multi().at_least(1).at_most(10)
+
+    fn try_parse<T>(&mut self) -> Result<Option<T>, ParseError<T::Err>>
+    where
+        T: FromStr,
+    {
+        let Some(i) = self.args.raw_args.iter().position(|arg| {
+            if arg.positional || arg.consumed {
+                return false;
+            }
+
+            // TODO: optimize
+            arg.text == format!("--{}", self.name)
+                || self
+                    .short_name
+                    .as_ref()
+                    .is_some_and(|name| arg.text == format!("-{name}"))
+        }) else {
+            return Ok(None);
+        };
+
+        let key = &mut self.args.raw_args[i];
+        key.consumed = true;
+
+        let Some(value) = self.args.raw_args.get_mut(i + 1) else {
+            // return Err(ParseError {
+            //     arg: key.text.clone(),
+            //     error: todo!(),
+            // });
+            todo!("no value error")
+        };
+
+        value.consumed = true;
+        value.text.parse().map(Some).map_err(|error| ParseError {
+            arg: value.text.clone(),
+            error,
+        })
+    }
+
+    pub fn parse<T>(mut self) -> Option<T>
+    where
+        T: FromStr,
+        T::Err: std::fmt::Display,
+    {
+        match self.try_parse() {
+            Err(e) => {
+                // TODO:
+                eprintln!(
+                    "[error] invalid argument --{}: value={}, reason={}",
+                    self.name, e.arg, e.error
+                );
+                std::process::exit(1);
+            }
+            Ok(value) => value,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ParseError<E> {
     pub arg: String,
     pub error: E,
@@ -259,6 +344,22 @@ mod tests {
 
         let v = args.arg("INTEGER-1").optional().parse::<usize>();
         assert_eq!(v, None);
+
+        args.finish();
+    }
+
+    #[test]
+    fn option_args() {
+        let mut args = Args::with_raw_args(["--foo", "10", "-b", "1", "3"]);
+
+        let v = args.option("foo").parse::<usize>();
+        assert_eq!(v, Some(10));
+
+        let v = args.option("bar").short('b').parse::<usize>();
+        assert_eq!(v, Some(1));
+
+        let v = args.arg("INTEGER-1").parse::<usize>();
+        assert_eq!(v, 3);
 
         args.finish();
     }
