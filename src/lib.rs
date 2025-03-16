@@ -18,6 +18,8 @@ pub struct Args {
     help_builder: Option<HelpBuilder>,
 }
 
+// TODO: impl Drop (for finish())
+
 impl Args {
     pub fn new() -> Self {
         Self::with_raw_args(std::env::args().skip(1))
@@ -72,7 +74,9 @@ impl Args {
         OptionArg::new(self, name)
     }
 
-    // TODO: option(), subcommand()
+    pub fn subcommand<'a>(&mut self, name: &str) -> Subcommand {
+        Subcommand::new(self, name)
+    }
 
     fn try_finish(&self) -> bool {
         self.raw_args.iter().all(|a| a.consumed)
@@ -227,6 +231,45 @@ impl<'a> PositionalArg<'a> {
 }
 
 #[derive(Debug)]
+pub struct Subcommand<'a> {
+    args: &'a mut Args,
+    name: String,
+    // TODO: help
+}
+
+impl<'a> Subcommand<'a> {
+    fn new(args: &'a mut Args, name: &str) -> Self {
+        Self {
+            args,
+            name: name.to_owned(),
+        }
+    }
+
+    pub fn is_present(self) -> bool {
+        for (i, arg) in self.args.raw_args.iter().enumerate() {
+            if arg.consumed {
+                continue;
+            }
+            if arg.positional {
+                panic!(); // TODO: error handling
+            }
+
+            // TODO: error handling
+            assert!(self.args.raw_args.iter().skip(i + 1).all(|a| !a.consumed));
+
+            if arg.text != self.name {
+                return false;
+            }
+
+            self.args.raw_args[i].consumed = true;
+            break;
+        }
+
+        true
+    }
+}
+
+#[derive(Debug)]
 pub struct OptionArg<'a> {
     args: &'a mut Args,
     name: String,
@@ -376,5 +419,17 @@ mod tests {
         assert_eq!(v, 10);
 
         args.finish();
+    }
+
+    #[test]
+    fn subcommand() {
+        let mut args = Args::with_raw_args(["--foo", "run", "--bar", "10"]);
+
+        assert!(args.flag("foo").is_present());
+        if args.subcommand("show").is_present() {
+        } else if args.subcommand("run").is_present() {
+            let v = args.option("bar").short('b').parse::<usize>();
+            assert_eq!(v, Some(10));
+        }
     }
 }
