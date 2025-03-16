@@ -40,6 +40,12 @@ impl Args {
         PositionalArg::new(self, name)
     }
 
+    pub fn flag(&mut self, name: &str) -> Flag {
+        Flag::new(self, name)
+    }
+
+    // TODO: option(), subcommand()
+
     fn try_finish(&self) -> bool {
         self.raw_args.is_empty()
     }
@@ -58,6 +64,82 @@ impl Args {
 }
 
 #[derive(Debug)]
+pub struct OptionalPositionalArg<'a> {
+    inner: PositionalArg<'a>,
+}
+
+impl<'a> OptionalPositionalArg<'a> {
+    pub fn parse<T>(mut self) -> Option<T>
+    where
+        T: FromStr,
+        T::Err: std::fmt::Display,
+    {
+        match self.inner.try_parse() {
+            Err(e) => {
+                eprintln!(
+                    "[error] invalid argument {}: value={}, reason={}",
+                    self.inner.name, e.arg, e.error
+                );
+                std::process::exit(1);
+            }
+            Ok(value) => value,
+        }
+    }
+
+    // TODO: fn parse_or_default()
+}
+
+#[derive(Debug)]
+pub struct Flag<'a> {
+    args: &'a mut Args,
+    name: String,
+    short_name: Option<char>,
+}
+
+impl<'a> Flag<'a> {
+    fn new(args: &'a mut Args, name: &str) -> Self {
+        Self {
+            args,
+            name: name.to_owned(),
+            short_name: None,
+        }
+    }
+
+    pub fn short(mut self, name: char) -> Self {
+        self.short_name = Some(name);
+        self
+    }
+
+    pub fn is_present(self) -> bool {
+        assert!(!self.args.need_positional_args); // TODO
+
+        // TODO: duplicate check
+        let mut present = false;
+        let mut skip = false;
+        self.args.raw_args.retain(|arg| {
+            if arg == "--" || skip {
+                skip = true;
+                return true;
+            };
+
+            // TODO: optimize
+            if *arg == format!("--{}", self.name) {
+                present = true;
+                return false;
+            }
+            if let Some(short) = self.short_name {
+                if *arg == format!("-{}", short) {
+                    present = true;
+                    return false;
+                }
+            }
+            true
+        });
+        present
+    }
+}
+
+#[derive(Debug)]
 pub struct PositionalArg<'a> {
     args: &'a mut Args,
     name: String,
@@ -70,6 +152,12 @@ impl<'a> PositionalArg<'a> {
             name: name.to_owned(),
         }
     }
+
+    pub fn optional(self) -> OptionalPositionalArg<'a> {
+        OptionalPositionalArg { inner: self }
+    }
+
+    // TODO: multi().at_least(1).at_most(10)
 
     fn try_parse<T>(&mut self) -> Result<Option<T>, ParseError<T::Err>>
     where
@@ -127,6 +215,38 @@ mod tests {
 
         let v = args.arg("INTEGER-1").parse::<usize>();
         assert_eq!(v, 3);
+
+        assert!(matches!(
+            args.arg("INTEGER-2").try_parse::<usize>(),
+            Ok(None)
+        ));
+
+        args.finish();
+    }
+
+    #[test]
+    fn optional_positional_args() {
+        let mut args = Args::with_raw_args(["10"]);
+
+        let v = args.arg("INTEGER-0").optional().parse::<usize>();
+        assert_eq!(v, Some(10));
+
+        let v = args.arg("INTEGER-1").optional().parse::<usize>();
+        assert_eq!(v, None);
+
+        args.finish();
+    }
+
+    #[test]
+    fn flags() {
+        let mut args = Args::with_raw_args(["-b", "--foo", "10"]);
+
+        assert!(args.flag("foo").is_present());
+        assert!(!args.flag("bar").is_present());
+        assert!(args.flag("baz").short('b').is_present());
+
+        let v = args.arg("INTEGER-0").parse::<usize>();
+        assert_eq!(v, 10);
 
         args.finish();
     }
