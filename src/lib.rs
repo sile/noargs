@@ -28,16 +28,23 @@ impl Args {
         I: IntoIterator<Item = T>,
         T: Into<String>,
     {
-        // TODO: handle `--`
+        let mut raw_args = raw_args
+            .into_iter()
+            .map(|a| RawArg {
+                text: a.into(),
+                consumed: false,
+                positional: false,
+            })
+            .collect::<Vec<_>>();
+        for arg in &mut raw_args {
+            if arg.text == "--" {
+                arg.consumed = true;
+                arg.positional = true;
+                break;
+            }
+        }
         Self {
-            raw_args: raw_args
-                .into_iter()
-                .map(|a| RawArg {
-                    text: a.into(),
-                    consumed: false,
-                    positional: false,
-                })
-                .collect(),
+            raw_args,
             help_builder: None,
         }
     }
@@ -136,12 +143,12 @@ impl<'a> Flag<'a> {
         // TODO: duplicate check
         let mut present = false;
         for arg in &mut self.args.raw_args {
-            if arg.consumed {
-                continue;
-            };
             if arg.positional {
                 break;
             }
+            if arg.consumed {
+                continue;
+            };
 
             // TODO: optimize
             if arg.text == format!("--{}", self.name) {
