@@ -82,7 +82,8 @@ impl Args {
         self.raw_args.iter().all(|a| a.consumed)
     }
 
-    pub fn finish(self) {
+    // TODO: rename
+    fn finish_inner(&mut self) {
         if self.try_finish() {
             return;
         }
@@ -97,6 +98,16 @@ impl Args {
                 .join(" ")
         );
         std::process::exit(1);
+    }
+
+    pub fn finish(mut self) {
+        self.finish_inner();
+    }
+}
+
+impl Drop for Args {
+    fn drop(&mut self) {
+        self.finish_inner();
     }
 }
 
