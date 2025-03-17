@@ -1,7 +1,76 @@
-use std::str::FromStr;
+use std::{
+    io::{IsTerminal, Write},
+    str::FromStr,
+};
 
 #[derive(Debug)]
-pub struct HelpBuilder {}
+pub struct HelpBuilder {
+    pkg_name: String,
+    description: Option<String>,
+    has_options: bool,
+
+    // TODO: handle optional and multi
+    arg_names: Vec<String>,
+}
+
+impl HelpBuilder {
+    pub fn output<W>(&self, mut writer: W, _is_termina: bool) -> std::io::Result<()>
+    where
+        W: Write,
+    {
+        if let Some(s) = &self.description {
+            writeln!(writer, "{s}\n")?;
+        }
+
+        write!(
+            writer,
+            "{} {}",
+            bold_underline("Usage:"),
+            bold(&self.pkg_name)
+        )?;
+        if self.has_options {
+            write!(writer, " [OPTIONS]")?;
+        }
+        for arg_name in &self.arg_names {
+            write!(writer, " [{arg_name}]")?;
+        }
+        writeln!(writer)?;
+
+        if !self.arg_names.is_empty() {
+            writeln!(writer, "{}:", bold_underline("Arguments:"))?;
+            // TODO
+        }
+
+        if self.has_options {
+            writeln!(writer, "{}:", bold_underline("Options:"))?;
+        }
+
+        // TODO: subcommand
+
+        Ok(())
+    }
+}
+
+impl Default for HelpBuilder {
+    fn default() -> Self {
+        Self {
+            pkg_name: env!("CARGO_PKG_NAME").to_owned(),
+            // TODO: pkg_version: env!("CARGO_PKG_VERSION").to_owned(),
+            description: None,
+            has_options: false,
+            arg_names: Vec::new(),
+        }
+    }
+}
+
+// TODO
+fn bold_underline(s: &str) -> &str {
+    s
+}
+
+fn bold(s: &str) -> &str {
+    s
+}
 
 #[derive(Debug)]
 pub struct RawArg {
@@ -14,8 +83,8 @@ pub struct RawArg {
 pub struct Args {
     raw_args: Vec<RawArg>,
     // TDOO: version, app_name
-    #[expect(dead_code)]
-    help_builder: Option<HelpBuilder>,
+    help_builder: HelpBuilder,
+    show_help: bool,
 }
 
 // TODO: impl Drop (for finish())
@@ -38,16 +107,21 @@ impl Args {
                 positional: false,
             })
             .collect::<Vec<_>>();
+        let mut show_help = false;
         for arg in &mut raw_args {
             if arg.text == "--" {
                 arg.consumed = true;
                 arg.positional = true;
                 break;
             }
+            if matches!(arg.text.as_str(), "-h" | "--help") {
+                show_help = true;
+            }
         }
         Self {
             raw_args,
-            help_builder: None,
+            help_builder: HelpBuilder::default(),
+            show_help,
         }
     }
 
@@ -82,8 +156,25 @@ impl Args {
         self.raw_args.iter().all(|a| a.consumed)
     }
 
+    pub fn help(&self) -> String {
+        let mut buf = Vec::new();
+        self.help_builder
+            .output(&mut buf, false)
+            .expect("infallible");
+        String::from_utf8(buf).expect("infallible")
+    }
+
     // TODO: rename
     fn finish_inner(&mut self) {
+        if self.show_help {
+            let stdout = std::io::stdout();
+            let is_terminal = stdout.is_terminal();
+            self.help_builder
+                .output(stdout.lock(), is_terminal)
+                .expect("TODO");
+            std::process::exit(0);
+        }
+
         if self.try_finish() {
             return;
         }
