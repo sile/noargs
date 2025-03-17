@@ -1,3 +1,5 @@
+use std::io::Write;
+
 #[derive(Debug)]
 pub struct CliArgs {
     raw_args: Vec<Option<String>>,
@@ -26,6 +28,43 @@ impl CliArgs {
         }
     }
 
-    // TODO: version
+    // TODO: app()
+    pub fn app_version(&mut self) -> AppVersion {
+        AppVersion::new(self)
+    }
+
     // TODO: help
+}
+
+// TODO: move
+#[derive(Debug)]
+pub struct AppVersion<'a> {
+    args: &'a mut CliArgs,
+    consumed: bool,
+}
+
+impl<'a> AppVersion<'a> {
+    fn new(args: &'a mut CliArgs) -> Self {
+        Self {
+            args,
+            consumed: false,
+        }
+    }
+}
+
+impl<'a> Drop for AppVersion<'a> {
+    fn drop(&mut self) {
+        if self.consumed {
+            return;
+        }
+
+        let stdout = std::io::stdout();
+        let mut stdout = stdout.lock();
+        let _ = writeln!(
+            stdout,
+            "{} {}",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION")
+        );
+    }
 }
