@@ -3,6 +3,10 @@ use std::{
     str::FromStr,
 };
 
+mod args;
+
+pub use self::args::CliArgs;
+
 #[derive(Debug)]
 pub struct HelpBuilder {
     pkg_name: String,
@@ -275,6 +279,7 @@ impl<'a> Flag<'a> {
     }
 }
 
+// TODO: s/PositionalArg/CliArg/
 #[derive(Debug)]
 pub struct PositionalArg<'a> {
     args: &'a mut Args,
@@ -376,6 +381,7 @@ impl<'a> Subcommand<'a> {
     }
 }
 
+// TODO: s/OptionArg/CliOption/
 #[derive(Debug)]
 pub struct OptionArg<'a> {
     args: &'a mut Args,
