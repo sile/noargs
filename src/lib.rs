@@ -4,8 +4,10 @@ use std::{
 };
 
 mod args;
+mod metadata;
 
 pub use self::args::CliArgs;
+pub use self::metadata::AppMetadata;
 
 #[derive(Debug)]
 pub struct HelpBuilder {
