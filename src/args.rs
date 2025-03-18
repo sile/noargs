@@ -1,9 +1,28 @@
+use std::{borrow::Cow, io::IsTerminal};
+
+#[derive(Debug, Clone)]
+struct OptionSpec {
+    long_name: String,
+    short_name: Option<char>,
+    doc: Option<String>, // TODO: rename
+}
+
+impl OptionSpec {
+    fn new(long_name: &str) -> Self {
+        Self {
+            long_name: long_name.to_owned(),
+            short_name: None,
+            doc: None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct CliArgs {
     raw_args: Vec<Option<String>>,
-    //show_help: bool,
     named_args_end: usize,
     metadata: Metadata,
+    options: Vec<OptionSpec>,
 }
 
 impl CliArgs {
@@ -22,9 +41,9 @@ impl CliArgs {
         }
         Self {
             raw_args,
-            //show_help: false,
             named_args_end,
             metadata: Metadata::default(),
+            options: Vec::new(),
         }
     }
 
@@ -32,15 +51,17 @@ impl CliArgs {
         Self::new(raw_args.iter().map(|a| a.to_string()))
     }
 
-    fn take_flag(&mut self, long_name: &str, short_name: Option<char>) -> bool {
+    fn take_flag(&mut self, spec: OptionSpec) -> bool {
+        self.options.push(spec.clone()); // TODO: remove clone
+
         for raw_arg in &mut self.raw_args[..self.named_args_end] {
             let found = raw_arg.take_if(|raw_arg| {
-                if raw_arg.starts_with("--") && &raw_arg[2..] == long_name {
+                if raw_arg.starts_with("--") && &raw_arg[2..] == spec.long_name {
                     true
-                } else if short_name.is_some()
+                } else if spec.short_name.is_some()
                     && raw_arg.starts_with('-')
                     && raw_arg.chars().count() == 2
-                    && raw_arg.chars().nth(1) == short_name
+                    && raw_arg.chars().nth(1) == spec.short_name
                 {
                     true
                 } else {
@@ -63,6 +84,7 @@ impl CliArgs {
     }
 
     pub fn output(self) -> Output {
+        // TODO: check unknown (unconsumed) args
         Output::new(self)
     }
 
@@ -77,7 +99,7 @@ impl CliArgs {
 pub struct Metadata {
     pub app_name: &'static str,
     pub app_version: &'static str,
-    pub app_description: Option<&'static str>,
+    pub app_description: &'static str,
 }
 
 impl Default for Metadata {
@@ -85,7 +107,7 @@ impl Default for Metadata {
         Self {
             app_name: env!("CARGO_PKG_NAME"),
             app_version: env!("CARGO_PKG_VERSION"),
-            app_description: None,
+            app_description: env!("CARGO_PKG_DESCRIPTION"),
         }
     }
 }
@@ -102,7 +124,11 @@ impl<'a> Version<'a> {
     }
 
     pub fn is_present(self) -> bool {
-        self.args.take_flag("version", None)
+        let spec = OptionSpec {
+            doc: Some("Print version".to_owned()),
+            ..OptionSpec::new("version")
+        };
+        self.args.take_flag(spec)
     }
 }
 
@@ -126,18 +152,37 @@ impl<'a> Help<'a> {
     }
 
     pub fn is_present(self) -> bool {
-        self.args.take_flag("help", self.short_name)
+        let spec = OptionSpec {
+            short_name: self.short_name,
+            doc: Some("Print help".to_owned()),
+            ..OptionSpec::new("help")
+        };
+        self.args.take_flag(spec)
     }
 }
 
 // TODO: move
 pub struct Output {
     args: CliArgs,
+    is_terminal: bool,
 }
 
 impl Output {
     fn new(args: CliArgs) -> Self {
-        Self { args }
+        Self {
+            args,
+            is_terminal: false,
+        }
+    }
+
+    pub fn for_stdout(mut self) -> Self {
+        self.is_terminal = std::io::stdout().is_terminal();
+        self
+    }
+
+    pub fn for_stderr(mut self) -> Self {
+        self.is_terminal = std::io::stderr().is_terminal();
+        self
     }
 
     pub fn version_line(&self) -> String {
@@ -145,6 +190,54 @@ impl Output {
             "{} {}",
             self.args.metadata.app_name, self.args.metadata.app_version
         )
+    }
+
+    pub fn help_text(&self) -> String {
+        let mut text = format!("{}\n\n", self.args.metadata.app_description);
+
+        text.push_str(&format!(
+            "{} {} [OPTIONS]",
+            self.bold_underline("Usage:"),
+            self.bold(self.args.metadata.app_name)
+        ));
+        // TODO: ARGUMENTS
+        text.push_str("\n\n");
+
+        text.push_str(&self.bold_underline("Options:"));
+        for option in &self.args.options {
+            text.push_str("\n  ");
+            if let Some(name) = option.short_name {
+                text.push_str(&self.bold(&format!("-{}, ", name)));
+            } else {
+                text.push_str("    ");
+            }
+            text.push_str(&self.bold(&format!("--{}", option.long_name)));
+            // TODO: value_name
+            if let Some(doc) = &option.doc {
+                for line in doc.lines() {
+                    text.push_str(&format!("\n          {}", line));
+                }
+            }
+        }
+        text.push_str("\n");
+
+        text
+    }
+
+    fn bold_underline<'a>(&self, s: &'a str) -> Cow<'a, str> {
+        if !self.is_terminal {
+            Cow::Borrowed(s)
+        } else {
+            todo!()
+        }
+    }
+
+    fn bold<'a>(&self, s: &'a str) -> Cow<'a, str> {
+        if !self.is_terminal {
+            Cow::Borrowed(s)
+        } else {
+            todo!()
+        }
     }
 }
 
@@ -181,8 +274,23 @@ mod tests {
         assert!(!args.help().is_present());
 
         let mut args = CliArgs::from_slice(&["test", "run", "-h"]);
-        assert!(args.help().short('h').is_present());
+        args.metadata().app_description = "This is a test";
+        args.metadata().app_name = "test";
+        args.version().is_present();
 
-        // TODO: help text
+        assert!(args.help().short('h').is_present());
+        assert_eq!(
+            args.output().help_text(),
+            r#"This is a test
+
+Usage: test [OPTIONS]
+
+Options:
+      --version
+          Print version
+  -h, --help
+          Print help
+"#
+        );
     }
 }
