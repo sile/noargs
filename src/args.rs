@@ -1,5 +1,41 @@
 use std::{borrow::Cow, io::IsTerminal};
 
+pub trait OrExit {
+    type Item;
+    fn or_exit(self) -> Self::Item;
+}
+
+impl<T, E> OrExit for Result<T, E>
+where
+    E: std::fmt::Display,
+{
+    type Item = T;
+
+    fn or_exit(self) -> Self::Item {
+        match self {
+            Ok(item) => item,
+            Err(e) => {
+                // TODO: is_terminal
+                eprintln!("error: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Error<'a, E> {
+    MissingArg,
+    NameNotFound,
+    ValueUnspecified,
+    UnknownArgs,
+    ParseError {
+        name: &'a str,
+        value: &'a str,
+        error: E,
+    },
+}
+
 #[derive(Debug, Clone)]
 struct OptionSpec {
     long_name: String,
@@ -296,7 +332,14 @@ Options:
     }
 
     #[test]
-    fn positional_args() {
-        // TODO
+    fn required_positional_args() {
+        let mut args = CliArgs::from_slice(&["test", "8"]);
+
+        // let v: usize = args.arg("COMMAND").take().or_exit().parse().or_exit();
+
+        // let v: usize = args.arg("COMMAND").parse().expect("invalid arg");
+        // assert_eq!(v, 10);
+
+        // TODO: help text
     }
 }
