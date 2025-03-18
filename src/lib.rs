@@ -1,3 +1,3 @@
 mod args;
 
-pub use self::args::{CliArgs, Error, OrExit};
+pub use self::args::{CliArgs, OrExit};

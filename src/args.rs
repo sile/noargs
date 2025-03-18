@@ -23,19 +23,6 @@ where
     }
 }
 
-#[derive(Debug)]
-pub enum Error<'a, E> {
-    MissingArg,
-    NameNotFound,
-    ValueUnspecified,
-    UnknownArgs,
-    ParseError {
-        name: &'a str,
-        value: &'a str,
-        error: E,
-    },
-}
-
 #[derive(Debug, Clone)]
 struct OptionSpec {
     long_name: String,
@@ -57,6 +44,7 @@ impl OptionSpec {
 pub struct CliArgs {
     raw_args: Vec<Option<String>>,
     named_args_end: usize,
+    positional_args_start: usize,
     metadata: Metadata,
     options: Vec<OptionSpec>,
 }
@@ -68,16 +56,19 @@ impl CliArgs {
     {
         let mut raw_args = raw_args.skip(1).map(Some).collect::<Vec<_>>();
         let mut named_args_end = raw_args.len();
+        let mut positional_args_start = 0;
         for (i, raw_arg) in raw_args.iter_mut().enumerate() {
             if raw_arg.as_ref().is_some_and(|a| a == "--") {
                 *raw_arg = None;
                 named_args_end = i;
+                positional_args_start = i;
                 break;
             }
         }
         Self {
             raw_args,
             named_args_end,
+            positional_args_start,
             metadata: Metadata::default(),
             options: Vec::new(),
         }
@@ -85,6 +76,10 @@ impl CliArgs {
 
     pub fn from_slice(raw_args: &[&str]) -> Self {
         Self::new(raw_args.iter().map(|a| a.to_string()))
+    }
+
+    pub fn arg(&mut self, name: &str) -> CliArg {
+        CliArg::new(self, name)
     }
 
     // TODO: don't take
@@ -230,7 +225,10 @@ impl Output {
     }
 
     pub fn help_text(&self) -> String {
-        let mut text = format!("{}\n\n", self.args.metadata.app_description);
+        let mut text = String::new();
+        if !self.args.metadata.app_description.is_empty() {
+            text.push_str(&format!("{}\n\n", self.args.metadata.app_description));
+        }
 
         text.push_str(&format!(
             "{} {} [OPTIONS]",
@@ -277,6 +275,83 @@ impl Output {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct CliArgValue {
+    name: String,
+    value: String,
+}
+
+impl CliArgValue {
+    pub fn parse<T>(self) -> Result<T, ParseError<T::Err>>
+    where
+        T: std::str::FromStr,
+    {
+        self.value.parse().map_err(|error| ParseError {
+            name: self.name,
+            error,
+        })
+    }
+
+    pub fn into_string(self) -> String {
+        self.value
+    }
+}
+
+// TODO: rename
+#[derive(Debug)]
+pub struct CliArg<'a> {
+    args: &'a mut CliArgs,
+    name: String,
+}
+
+impl<'a> CliArg<'a> {
+    fn new(args: &'a mut CliArgs, name: &str) -> Self {
+        Self {
+            args,
+            name: name.to_owned(),
+        }
+    }
+
+    pub fn take(self) -> Result<CliArgValue, TakeError> {
+        let raw_arg = self.args.raw_args[self.args.positional_args_start..]
+            .iter_mut()
+            .inspect(|_| self.args.positional_args_start += 1)
+            .find_map(|a| a.take())
+            .ok_or(TakeError)?;
+        Ok(CliArgValue {
+            name: format!("<{}>", self.name),
+            value: raw_arg,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct ParseError<E> {
+    name: String,
+    error: E,
+}
+
+impl<E: std::fmt::Display> std::fmt::Display for ParseError<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO
+        write!(f, "invalid argument {:?}: {}", self.name, self.error)
+    }
+}
+
+impl<E: std::fmt::Debug + std::fmt::Display> std::error::Error for ParseError<E> {}
+
+#[derive(Debug)]
+pub struct TakeError;
+
+impl std::fmt::Display for TakeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO
+        write!(f, "no more arguments")
+    }
+}
+
+impl std::error::Error for TakeError {}
 
 #[cfg(test)]
 mod tests {
@@ -334,12 +409,23 @@ Options:
     #[test]
     fn required_positional_args() {
         let mut args = CliArgs::from_slice(&["test", "8"]);
+        let v: usize = args.arg("INT").take().or_exit().parse().or_exit();
+        assert_eq!(v, 8);
+        assert!(args.arg("INT").take().is_err());
 
-        // let v: usize = args.arg("COMMAND").take().or_exit().parse().or_exit();
+        let mut args = CliArgs::from_slice(&["test", "--help"]);
+        args.metadata().app_name = "test";
+        assert!(args.help().is_present());
+        assert!(args.arg("INT").take().is_err());
 
-        // let v: usize = args.arg("COMMAND").parse().expect("invalid arg");
-        // assert_eq!(v, 10);
+        assert_eq!(
+            args.output().help_text(),
+            r#"Usage: test [OPTIONS]
 
-        // TODO: help text
+Options:
+      --help
+          Print help
+"#
+        );
     }
 }
