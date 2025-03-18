@@ -1,10 +1,9 @@
-use crate::AppMetadata;
-
 #[derive(Debug)]
 pub struct CliArgs {
     raw_args: Vec<Option<String>>,
-    show_help: bool,
-    next_arg_index: Option<usize>,
+    //show_help: bool,
+    named_args_end: usize,
+    metadata: Metadata,
 }
 
 impl CliArgs {
@@ -12,17 +11,112 @@ impl CliArgs {
     where
         I: Iterator<Item = String>,
     {
-        let raw_args = raw_args.skip(1).map(Some).collect::<Vec<_>>();
+        let mut raw_args = raw_args.skip(1).map(Some).collect::<Vec<_>>();
+        let mut named_args_end = 0;
+        for (i, raw_arg) in raw_args.iter_mut().enumerate() {
+            if raw_arg.as_ref().is_some_and(|a| a == "--") {
+                *raw_arg = None;
+                named_args_end = i;
+                break;
+            }
+        }
         Self {
             raw_args,
-            show_help: false,
-            next_arg_index: None,
+            //show_help: false,
+            named_args_end,
+            metadata: Metadata::default(),
         }
     }
 
-    pub fn metadata(&mut self) -> AppMetadata {
-        AppMetadata::new(self)
+    pub fn from_slice(raw_args: &[&str]) -> Self {
+        Self::new(raw_args.iter().map(|a| a.to_string()))
+    }
+
+    pub fn version(&mut self) -> Version {
+        Version::new(self)
+    }
+
+    pub fn output(self) -> Output {
+        Output::new(self)
+    }
+
+    pub fn metadata(&mut self) -> &mut Metadata {
+        &mut self.metadata
     }
 
     // TODO: help
+}
+
+// TODO: move
+#[derive(Debug)]
+pub struct Metadata {
+    pub app_name: &'static str,
+    pub app_version: &'static str,
+}
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Self {
+            app_name: env!("CARGO_PKG_NAME"),
+            app_version: env!("CARGO_PKG_VERSION"),
+        }
+    }
+}
+
+// TODO: move
+#[derive(Debug)]
+pub struct Version<'a> {
+    args: &'a mut CliArgs,
+}
+
+impl<'a> Version<'a> {
+    fn new(args: &'a mut CliArgs) -> Self {
+        Self { args }
+    }
+
+    pub fn is_present(self) -> bool {
+        for raw_arg in &mut self.args.raw_args[..self.args.named_args_end] {
+            if raw_arg.as_ref().is_some_and(|a| a == "--version") {
+                *raw_arg = None;
+                return true;
+            }
+        }
+        false
+    }
+}
+
+// TODO: move
+pub struct Output {
+    args: CliArgs,
+}
+
+impl Output {
+    fn new(args: CliArgs) -> Self {
+        Self { args }
+    }
+
+    pub fn version_line(&self) -> String {
+        format!(
+            "{} {}",
+            self.args.metadata.app_name, self.args.metadata.app_version
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn version() {
+        let mut args = CliArgs::from_slice(&["test", "run"]);
+        assert!(!args.version().is_present());
+
+        let mut args = CliArgs::from_slice(&["test", "run", "--version"]);
+        assert!(!args.version().is_present());
+
+        args.metadata().app_name = "test";
+        args.metadata().app_version = "0.0.1";
+        assert_eq!(args.output().version_line(), "test 0.0.1");
+    }
 }

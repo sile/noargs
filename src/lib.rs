@@ -4,12 +4,8 @@ use std::{
 };
 
 mod args;
-mod metadata;
-mod writer;
 
 pub use self::args::CliArgs;
-pub use self::metadata::AppMetadata;
-//pub use self::writer::Output;
 
 #[derive(Debug)]
 pub struct HelpBuilder {
