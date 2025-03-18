@@ -1,22 +1,24 @@
 use std::{borrow::Cow, io::IsTerminal};
 
-pub trait OrExit {
+pub trait UnwrapOrExit {
     type Item;
-    fn or_exit(self) -> Self::Item;
+    fn unwrap_or_exit(self) -> Self::Item;
 }
 
-impl<T, E> OrExit for Result<T, E>
+impl<T, E> UnwrapOrExit for Result<T, E>
 where
     E: std::fmt::Display,
 {
     type Item = T;
 
-    fn or_exit(self) -> Self::Item {
+    fn unwrap_or_exit(self) -> Self::Item {
         match self {
             Ok(item) => item,
             Err(e) => {
                 // TODO: is_terminal
                 eprintln!("error: {e}");
+                eprintln!();
+                eprintln!("Try '--help' for TODO");
                 std::process::exit(1);
             }
         }
@@ -230,6 +232,7 @@ impl Output {
             text.push_str(&format!("{}\n\n", self.args.metadata.app_description));
         }
 
+        // TODO: align and inline handling
         text.push_str(&format!(
             "{} {} [OPTIONS]",
             self.bold_underline("Usage:"),
@@ -303,6 +306,8 @@ impl CliArgValue {
 pub struct CliArg<'a> {
     args: &'a mut CliArgs,
     name: String,
+    doc: Option<String>,
+    example: Option<String>,
 }
 
 impl<'a> CliArg<'a> {
@@ -310,7 +315,21 @@ impl<'a> CliArg<'a> {
         Self {
             args,
             name: name.to_owned(),
+            doc: None,
+            example: None,
         }
+    }
+
+    pub fn doc(mut self, doc: &str) -> Self {
+        self.doc = Some(doc.to_owned());
+        self
+    }
+
+    pub fn example_if(mut self, condition: bool, example: &str) -> Self {
+        if condition {
+            self.example = Some(example.to_owned());
+        }
+        self
     }
 
     pub fn take(self) -> Result<CliArgValue, TakeError> {
@@ -409,18 +428,30 @@ Options:
     #[test]
     fn required_positional_args() {
         let mut args = CliArgs::from_slice(&["test", "8"]);
-        let v: usize = args.arg("INT").take().or_exit().parse().or_exit();
+        let v: usize = args
+            .arg("INT")
+            .take()
+            .unwrap_or_exit()
+            .parse()
+            .unwrap_or_exit();
         assert_eq!(v, 8);
         assert!(args.arg("INT").take().is_err());
 
         let mut args = CliArgs::from_slice(&["test", "--help"]);
         args.metadata().app_name = "test";
-        assert!(args.help().is_present());
-        assert!(args.arg("INT").take().is_err());
+        let help_mode = args.help().is_present();
+        args.arg("INT")
+            .doc("An integer")
+            .example_if(help_mode, "1")
+            .take()
+            .unwrap_or_exit();
 
         assert_eq!(
             args.output().help_text(),
-            r#"Usage: test [OPTIONS]
+            r#"Usage: test [OPTIONS] INT
+
+Arguments:
+    INT  An integer
 
 Options:
       --help
