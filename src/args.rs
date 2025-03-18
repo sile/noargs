@@ -12,7 +12,7 @@ impl CliArgs {
         I: Iterator<Item = String>,
     {
         let mut raw_args = raw_args.skip(1).map(Some).collect::<Vec<_>>();
-        let mut named_args_end = 0;
+        let mut named_args_end = raw_args.len();
         for (i, raw_arg) in raw_args.iter_mut().enumerate() {
             if raw_arg.as_ref().is_some_and(|a| a == "--") {
                 *raw_arg = None;
@@ -32,8 +32,34 @@ impl CliArgs {
         Self::new(raw_args.iter().map(|a| a.to_string()))
     }
 
+    fn take_flag(&mut self, long_name: &str, short_name: Option<char>) -> bool {
+        for raw_arg in &mut self.raw_args[..self.named_args_end] {
+            let found = raw_arg.take_if(|raw_arg| {
+                if raw_arg.starts_with("--") && &raw_arg[2..] == long_name {
+                    true
+                } else if short_name.is_some()
+                    && raw_arg.starts_with('-')
+                    && raw_arg.chars().count() == 2
+                    && raw_arg.chars().nth(1) == short_name
+                {
+                    true
+                } else {
+                    false
+                }
+            });
+            if found.is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn version(&mut self) -> Version {
         Version::new(self)
+    }
+
+    pub fn help(&mut self) -> Help {
+        Help::new(self)
     }
 
     pub fn output(self) -> Output {
@@ -43,8 +69,6 @@ impl CliArgs {
     pub fn metadata(&mut self) -> &mut Metadata {
         &mut self.metadata
     }
-
-    // TODO: help
 }
 
 // TODO: move
@@ -78,13 +102,31 @@ impl<'a> Version<'a> {
     }
 
     pub fn is_present(self) -> bool {
-        for raw_arg in &mut self.args.raw_args[..self.args.named_args_end] {
-            if raw_arg.as_ref().is_some_and(|a| a == "--version") {
-                *raw_arg = None;
-                return true;
-            }
+        self.args.take_flag("version", None)
+    }
+}
+
+#[derive(Debug)]
+pub struct Help<'a> {
+    args: &'a mut CliArgs,
+    short_name: Option<char>,
+}
+
+impl<'a> Help<'a> {
+    fn new(args: &'a mut CliArgs) -> Self {
+        Self {
+            args,
+            short_name: None,
         }
-        false
+    }
+
+    pub fn short(mut self, name: char) -> Self {
+        self.short_name = Some(name);
+        self
+    }
+
+    pub fn is_present(self) -> bool {
+        self.args.take_flag("help", self.short_name)
     }
 }
 
@@ -115,11 +157,32 @@ mod tests {
         let mut args = CliArgs::from_slice(&["test", "run"]);
         assert!(!args.version().is_present());
 
+        let mut args = CliArgs::from_slice(&["test", "run", "--", "--version"]);
+        assert!(!args.version().is_present());
+
         let mut args = CliArgs::from_slice(&["test", "run", "--version"]);
+        assert!(args.version().is_present());
         assert!(!args.version().is_present());
 
         args.metadata().app_name = "test";
         args.metadata().app_version = "0.0.1";
         assert_eq!(args.output().version_line(), "test 0.0.1");
+    }
+
+    #[test]
+    fn help() {
+        let mut args = CliArgs::from_slice(&["test", "run"]);
+        assert!(!args.help().is_present());
+
+        let mut args = CliArgs::from_slice(&["test", "run", "--help"]);
+        assert!(args.help().is_present());
+
+        let mut args = CliArgs::from_slice(&["test", "run", "-h"]);
+        assert!(!args.help().is_present());
+
+        let mut args = CliArgs::from_slice(&["test", "run", "-h"]);
+        assert!(args.help().short('h').is_present());
+
+        // TODO: help text
     }
 }
