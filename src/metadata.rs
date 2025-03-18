@@ -1,16 +1,18 @@
+use std::io::Write;
+
 use crate::CliArgs;
 
 #[derive(Debug)]
-pub struct AppMetadata<'a> {
-    args: &'a mut CliArgs,
+pub struct AppMetadata<'a, W> {
+    args: &'a mut CliArgs<W>,
 }
 
-impl<'a> AppMetadata<'a> {
-    pub(crate) fn new(args: &'a mut CliArgs) -> Self {
+impl<'a, W: Write> AppMetadata<'a, W> {
+    pub(crate) fn new(args: &'a mut CliArgs<W>) -> Self {
         Self { args }
     }
 
-    pub fn version(self) -> AppVersion<'a> {
+    pub fn version(self) -> AppVersion<'a, W> {
         AppVersion {
             args: self.args,
             consumed: false,
@@ -19,12 +21,12 @@ impl<'a> AppMetadata<'a> {
 }
 
 #[derive(Debug)]
-pub struct AppVersion<'a> {
-    args: &'a mut CliArgs,
+pub struct AppVersion<'a, W: Write> {
+    args: &'a mut CliArgs<W>,
     consumed: bool,
 }
 
-impl<'a> Drop for AppVersion<'a> {
+impl<'a, W: Write> Drop for AppVersion<'a, W> {
     fn drop(&mut self) {
         if self.consumed {
             return;
