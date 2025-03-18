@@ -48,10 +48,12 @@ impl CliArgs {
 }
 
 // TODO: move
+// TODO: Rename to App (?)
 #[derive(Debug)]
 pub struct Metadata {
     pub app_name: &'static str,
     pub app_version: &'static str,
+    pub app_description: Option<&'static str>,
 }
 
 impl Default for Metadata {
@@ -59,6 +61,7 @@ impl Default for Metadata {
         Self {
             app_name: env!("CARGO_PKG_NAME"),
             app_version: env!("CARGO_PKG_VERSION"),
+            app_description: None,
         }
     }
 }
