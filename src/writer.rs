@@ -1,5 +1,18 @@
 use std::io::{StderrLock, StdoutLock, Write};
 
+// より適切な名前を提案してください
+pub trait Output {
+    type Stdout: Write;
+    type Stderr: Write;
+
+    fn stdout() -> Self::Stdout;
+    fn stderr() -> Self::Stderr;
+    fn finish(exit_code: i32);
+
+    fn is_stdout_terminal() -> bool;
+    fn is_stderr_terminal() -> bool;
+}
+
 #[derive(Debug)]
 pub struct DefaultWriter(Option<DefaultWriterInner>);
 
