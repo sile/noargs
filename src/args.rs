@@ -51,6 +51,7 @@ impl CliArgs {
         Self::new(raw_args.iter().map(|a| a.to_string()))
     }
 
+    // TODO: don't take
     fn take_flag(&mut self, spec: OptionSpec) -> bool {
         self.options.push(spec.clone()); // TODO: remove clone
 
@@ -292,5 +293,10 @@ Options:
           Print help
 "#
         );
+    }
+
+    #[test]
+    fn positional_args() {
+        // TODO
     }
 }
