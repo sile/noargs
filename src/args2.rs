@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[derive(Debug)]
 #[expect(dead_code)]
 pub struct CliArgs {
@@ -6,36 +8,87 @@ pub struct CliArgs {
     named_args_end: usize,
 }
 
-impl CliArgs {
-    #[expect(unused_variables)]
-    pub fn take_flag(&mut self, flag: CliFlag) -> CliFlag {
+impl CliArgs {}
+
+pub trait TakeArg<SPEC> {
+    type Value;
+
+    fn take_arg(&mut self, spec: SPEC) -> Self::Value;
+}
+
+impl TakeArg<CliFlagSpec> for CliArgs {
+    type Value = bool;
+
+    fn take_arg(&mut self, _spec: CliFlagSpec) -> Self::Value {
         todo!()
     }
+}
 
-    #[expect(unused_variables)]
-    pub fn take_option(&mut self, option: CliOption) -> Result<CliOption, TakeOptionError> {
+impl TakeArg<CliOptionSpec> for CliArgs {
+    type Value = CliOptionValue;
+
+    fn take_arg(&mut self, _spec: CliOptionSpec) -> Self::Value {
         todo!()
     }
 }
 
 #[derive(Debug)]
-pub enum TakeOptionError {
-    MissingValue { option: CliOption },
-    MissingRequiredOption { option: CliOption },
+pub enum ParseError<SPEC, E> {
+    InvalidValue {
+        arg_spec: SPEC,
+        arg_value: String,
+        error: E,
+    },
+    MissingOptionValue {
+        arg_spec: SPEC,
+    },
 }
 
 #[derive(Debug)]
+pub struct CliOptionValue {
+    spec: CliOptionSpec,
+    value: Option<String>,
+    missing_value: bool,
+}
+
+impl CliOptionValue {
+    pub fn parse<T: FromStr>(self) -> Result<Option<T>, ParseError<CliOptionSpec, T::Err>> {
+        if self.missing_value {
+            return Err(ParseError::MissingOptionValue {
+                arg_spec: self.spec,
+            });
+        }
+
+        let Some(value) = self.value else {
+            return Ok(None);
+        };
+
+        value
+            .parse()
+            .map(Some)
+            .map_err(|error| ParseError::InvalidValue {
+                arg_spec: self.spec,
+                arg_value: value,
+                error,
+            })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 #[expect(dead_code)]
-pub struct CliOption {
+pub struct CliOptionSpec {
     long_name: Option<&'static str>,
     short_name: Option<char>,
     doc: Option<&'static str>,
-    default_value: String,
-    value: Option<String>,
 }
 
-impl CliOption {
-    //
+#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
+pub struct CliDefaultedOption {
+    long_name: Option<&'static str>,
+    short_name: Option<char>,
+    doc: Option<&'static str>,
+    default_value: &'static str,
 }
 
 #[derive(Debug)]
@@ -52,16 +105,15 @@ impl CliRequiredOption {
     //
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[expect(dead_code)]
-pub struct CliFlag {
+pub struct CliFlagSpec {
     long_name: Option<&'static str>,
     short_name: Option<char>,
     doc: Option<&'static str>,
-    is_present: bool,
 }
 
-impl CliFlag {
+impl CliFlagSpec {
     pub const HELP: Self = Self::new("help", 'h').doc("Print help");
     pub const VERSION: Self = Self::long("version").doc("Print version");
     pub const OPTIONS_END: Self = Self::long("").doc("Indicate options end");
@@ -71,7 +123,6 @@ impl CliFlag {
             long_name: Some(long_name),
             short_name: Some(short_name),
             doc: None,
-            is_present: false,
         }
     }
 
@@ -80,7 +131,6 @@ impl CliFlag {
             long_name: Some(name),
             short_name: None,
             doc: None,
-            is_present: false,
         }
     }
 
@@ -89,17 +139,12 @@ impl CliFlag {
             long_name: None,
             short_name: Some(name),
             doc: None,
-            is_present: false,
         }
     }
 
     pub const fn doc(mut self, doc: &'static str) -> Self {
         self.doc = Some(doc);
         self
-    }
-
-    pub const fn is_present(&self) -> bool {
-        self.is_present
     }
 }
 
