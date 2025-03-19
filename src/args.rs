@@ -440,6 +440,11 @@ Options:
         //     args.enable_example();
         // }
 
+        // args.take(CliFlag::new("help").short('h').doc("Print help"));
+        // if args.flag("help").short('h').doc("Print help").take() {
+        //     args.enable_example();
+        // }
+
         // args.define_flag("help").short('h').doc("Print help");
         // if args.is_present("help") {
         //     args.enable_example();
