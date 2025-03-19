@@ -44,6 +44,22 @@ pub enum ParseError<SPEC, E> {
     },
 }
 
+#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
+pub struct CliArgSpec {
+    value_name: &'static str,
+    example_value: Option<&'static str>,
+    // TODO: env, hidden_env
+    doc: Option<&'static str>,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
+pub struct CliOptionalArgSpec {
+    value_name: &'static str,
+    doc: Option<&'static str>,
+}
+
 #[derive(Debug)]
 pub struct CliOptionValue {
     spec: CliOptionSpec,
@@ -52,6 +68,8 @@ pub struct CliOptionValue {
 }
 
 impl CliOptionValue {
+    // TODO: parse_and(self, f: FnOnce)
+
     pub fn parse<T: FromStr>(self) -> Result<Option<T>, ParseError<CliOptionSpec, T::Err>> {
         if self.missing_value {
             return Err(ParseError::MissingOptionValue {
@@ -84,7 +102,7 @@ pub struct CliOptionSpec {
 
 #[derive(Debug, Clone, Copy)]
 #[expect(dead_code)]
-pub struct CliDefaultedOption {
+pub struct CliOptionWithDefaultSpec {
     long_name: Option<&'static str>,
     short_name: Option<char>,
     doc: Option<&'static str>,
@@ -93,16 +111,12 @@ pub struct CliDefaultedOption {
 
 #[derive(Debug)]
 #[expect(dead_code)]
-pub struct CliRequiredOption {
+pub struct CliRequiredOptionSpec {
     long_name: Option<&'static str>,
     short_name: Option<char>,
     doc: Option<&'static str>,
     example_value: Option<&'static str>,
     value: String,
-}
-
-impl CliRequiredOption {
-    //
 }
 
 #[derive(Debug, Clone, Copy)]
