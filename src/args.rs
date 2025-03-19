@@ -324,11 +324,11 @@ impl<'a> CliArg<'a> {
     }
 
     pub fn take(self) -> Result<CliArgValue, TakeError> {
-        // TODO: consider example
         let raw_arg = self.args.raw_args[self.args.positional_args_start..]
             .iter_mut()
             .inspect(|_| self.args.positional_args_start += 1)
             .find_map(|a| a.take())
+            .or(self.example)
             .ok_or(TakeError)?;
         Ok(CliArgValue {
             name: format!("<{}>", self.name),
@@ -375,6 +375,12 @@ mod tests {
 
         let mut args = CliArgs::from_slice(&["test", "run", "--", "--version"]);
         assert!(!args.version().is_present());
+
+        // TODO:
+        // if args.flag("version").is_present() {
+        //     println!("{} {}", args.app().name, args.app().version);
+        //     return;
+        // }
 
         let mut args = CliArgs::from_slice(&["test", "run", "--version"]);
         assert!(args.version().is_present());
@@ -428,6 +434,17 @@ Options:
 
         let mut args = CliArgs::from_slice(&["test", "--help"]);
         args.metadata().app_name = "test";
+
+        // TODO:
+        // if args.flag("help").short('h').doc("Print help").is_present() {
+        //     args.enable_example();
+        // }
+
+        // args.define_flag("help").short('h').doc("Print help");
+        // if args.is_present("help") {
+        //     args.enable_example();
+        // }
+
         args.arg("INT")
             .doc("An integer")
             .example("1")
@@ -439,7 +456,7 @@ Options:
             r#"Usage: test [OPTIONS] INT
 
 Arguments:
-    INT  An integer
+    INT  An integer (example: 1)
 
 Options:
       --help
