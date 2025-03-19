@@ -169,25 +169,16 @@ impl<'a> Version<'a> {
 #[derive(Debug)]
 pub struct Help<'a> {
     args: &'a mut CliArgs,
-    short_name: Option<char>,
 }
 
 impl<'a> Help<'a> {
     fn new(args: &'a mut CliArgs) -> Self {
-        Self {
-            args,
-            short_name: None,
-        }
-    }
-
-    pub fn short(mut self, name: char) -> Self {
-        self.short_name = Some(name);
-        self
+        Self { args }
     }
 
     pub fn is_present(self) -> bool {
         let spec = OptionSpec {
-            short_name: self.short_name,
+            short_name: Some('h'),
             doc: Some("Print help".to_owned()),
             ..OptionSpec::new("help")
         };
@@ -325,14 +316,15 @@ impl<'a> CliArg<'a> {
         self
     }
 
-    pub fn example_if(mut self, condition: bool, example: &str) -> Self {
-        if condition {
+    pub fn example(mut self, example: &str) -> Self {
+        if self.args.help().is_present() {
             self.example = Some(example.to_owned());
         }
         self
     }
 
     pub fn take(self) -> Result<CliArgValue, TakeError> {
+        // TODO: consider example
         let raw_arg = self.args.raw_args[self.args.positional_args_start..]
             .iter_mut()
             .inspect(|_| self.args.positional_args_start += 1)
@@ -402,14 +394,11 @@ mod tests {
         assert!(args.help().is_present());
 
         let mut args = CliArgs::from_slice(&["test", "run", "-h"]);
-        assert!(!args.help().is_present());
-
-        let mut args = CliArgs::from_slice(&["test", "run", "-h"]);
         args.metadata().app_description = "This is a test";
         args.metadata().app_name = "test";
         args.version().is_present();
 
-        assert!(args.help().short('h').is_present());
+        assert!(args.help().is_present());
         assert_eq!(
             args.output().help_text(),
             r#"This is a test
@@ -439,10 +428,9 @@ Options:
 
         let mut args = CliArgs::from_slice(&["test", "--help"]);
         args.metadata().app_name = "test";
-        let help_mode = args.help().is_present();
         args.arg("INT")
             .doc("An integer")
-            .example_if(help_mode, "1")
+            .example("1")
             .take()
             .unwrap_or_exit();
 
