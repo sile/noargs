@@ -46,6 +46,59 @@ pub enum ParseError<SPEC, E> {
 
 #[derive(Debug, Clone, Copy)]
 #[expect(dead_code)]
+pub struct Arg {
+    long_name: Option<&'static str>,
+    short_name: Option<char>,
+    value_name: Option<&'static str>,
+    doc: Option<&'static str>,
+    env: Option<&'static str>,
+    hidden_env: Option<&'static str>,
+    default_value: Option<&'static str>,
+    example_value: Option<&'static str>,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
+pub struct OptionArg {
+    long_name: Option<&'static str>,
+    short_name: Option<char>,
+    value_name: Option<&'static str>,
+    doc: Option<&'static str>,
+    env: Option<&'static str>,
+    hidden_env: Option<&'static str>,
+    default_value: Option<&'static str>,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
+pub struct Flag {
+    long_name: Option<&'static str>,
+    short_name: Option<char>,
+    doc: Option<&'static str>,
+    env: Option<&'static str>,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
+pub struct Subcommand {
+    name: &'static str,
+    doc: Option<&'static str>,
+}
+
+// fn foo() {
+//     args.take_arg(FOO.default_if(help, "foo")).parse()?;
+
+//     if args.take_arg(COMMAND_RUN) {
+//     } else if args.take_arg(COMMAND_FOO) {
+//     } else if help {
+//         println!("{}", args.help(std::io::stdio().is_terminal()));
+//     } else {
+//         args.finish()?;
+//     }
+// }
+
+#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
 pub struct CliArgSpec {
     value_name: &'static str,
     example_value: Option<&'static str>,
