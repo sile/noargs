@@ -11,6 +11,45 @@ impl CliArgs {
     pub fn take_flag(&mut self, flag: CliFlag) -> CliFlag {
         todo!()
     }
+
+    #[expect(unused_variables)]
+    pub fn take_option(&mut self, option: CliOption) -> Result<CliOption, TakeOptionError> {
+        todo!()
+    }
+}
+
+#[derive(Debug)]
+pub enum TakeOptionError {
+    MissingValue { option: CliOption },
+    MissingRequiredOption { option: CliOption },
+}
+
+#[derive(Debug)]
+#[expect(dead_code)]
+pub struct CliOption {
+    long_name: Option<&'static str>,
+    short_name: Option<char>,
+    doc: Option<&'static str>,
+    default_value: String,
+    value: Option<String>,
+}
+
+impl CliOption {
+    //
+}
+
+#[derive(Debug)]
+#[expect(dead_code)]
+pub struct CliRequiredOption {
+    long_name: Option<&'static str>,
+    short_name: Option<char>,
+    doc: Option<&'static str>,
+    example_value: Option<&'static str>,
+    value: String,
+}
+
+impl CliRequiredOption {
+    //
 }
 
 #[derive(Debug)]
