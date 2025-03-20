@@ -60,7 +60,16 @@ impl Args {
     }
 
     pub fn take_arg(&mut self, spec: ArgSpec) -> Arg {
-        todo!()
+        self.log.entries.push(LogEntry::Arg(spec));
+
+        let raw_arg = if spec.is_named() {
+            self.raw_args
+                .iter_mut()
+                .find_map(|raw_arg| raw_arg.take_if(|a| spec.matches(a)))
+        } else {
+            self.raw_args.iter_mut().find_map(|raw_arg| raw_arg.take())
+        };
+        Arg::new(spec, raw_arg)
     }
 
     pub fn take_flag(&mut self, spec: FlagSpec) -> Flag {
@@ -95,9 +104,13 @@ pub enum FinishError {
 #[derive(Debug)]
 pub enum ParseError<E> {
     InvalidValue {
-        error: E, // TODO
+        spec: ArgSpec,
+        kind: ArgKind,
+        error: E,
     },
-    MissingValue,
+    MissingValue {
+        spec: ArgSpec,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -118,12 +131,46 @@ pub struct Arg {
 }
 
 impl Arg {
+    pub fn new(spec: ArgSpec, mut raw_arg: Option<String>) -> Self {
+        let kind = if let Some(raw_arg) = &raw_arg {
+            if raw_arg.starts_with("--") {
+                Some(ArgKind::LongName)
+            } else {
+                Some(ArgKind::ShortName)
+            }
+        } else if let Some(value) = spec.env.and_then(|name| std::env::var(name).ok()) {
+            raw_arg = Some(value);
+            Some(ArgKind::EnvVar)
+        } else if spec.default_value.is_some() {
+            Some(ArgKind::Default)
+        } else if spec.example_value.is_some() {
+            Some(ArgKind::Example)
+        } else {
+            None
+        };
+
+        Self {
+            spec,
+            kind,
+            raw_arg,
+        }
+    }
+
     pub fn parse<T: FromStr>(&self) -> Result<T, ParseError<T::Err>> {
-        todo!()
+        self.parse_if_present()
+            .and_then(|v| v.ok_or_else(|| ParseError::MissingValue { spec: self.spec }))
     }
 
     pub fn parse_if_present<T: FromStr>(&self) -> Result<Option<T>, ParseError<T::Err>> {
-        todo!()
+        self.value()
+            .map(|v| {
+                v.parse().map_err(|error| ParseError::InvalidValue {
+                    spec: self.spec,
+                    kind: self.kind.expect("infallible"),
+                    error,
+                })
+            })
+            .transpose()
     }
 
     pub fn is_present(&self) -> bool {
@@ -135,7 +182,13 @@ impl Arg {
     }
 
     pub fn value(&self) -> Option<&str> {
-        todo!()
+        match self.kind? {
+            ArgKind::Positional | ArgKind::LongName | ArgKind::ShortName | ArgKind::EnvVar => {
+                self.raw_arg.as_ref().map(|a| a.as_str())
+            }
+            ArgKind::Default => self.spec.default_value,
+            ArgKind::Example => self.spec.example_value,
+        }
     }
 }
 
@@ -152,6 +205,23 @@ pub struct ArgSpec {
 }
 
 impl ArgSpec {
+    fn is_named(self) -> bool {
+        self.long_name.is_some() || self.short_name.is_some()
+    }
+
+    fn matches(self, raw_arg: &str) -> bool {
+        if raw_arg.starts_with("--") {
+            let name = raw_arg[2..].splitn(2, '=').next().expect("infallible");
+            Some(name) == self.long_name
+        } else if raw_arg.starts_with('-') {
+            let name = raw_arg[1..].splitn(2, '=').next().expect("infallible");
+            let mut chars = name.chars();
+            (chars.next(), chars.next()) == (self.short_name, None)
+        } else {
+            false
+        }
+    }
+
     pub const fn new() -> Self {
         Self {
             long_name: None,
@@ -222,7 +292,7 @@ pub struct Flag {
 impl Flag {
     fn new(spec: FlagSpec, raw_arg: Option<String>) -> Self {
         let kind = if let Some(raw_arg) = raw_arg {
-            if raw_arg.starts_with("--") && Some(&raw_arg[2..]) == spec.long_name {
+            if raw_arg.starts_with("--") {
                 Some(FlagKind::LongName)
             } else {
                 Some(FlagKind::ShortName)
