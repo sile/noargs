@@ -9,11 +9,14 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
-    pub fn take_arg(&mut self, spec: Arg) -> ArgValue {
+    pub fn take_arg<T: FromStr>(&mut self, spec: Arg) -> Result<T, ParseError<T::Err>> {
         todo!()
     }
 
-    pub fn take_option_arg(&mut self, spec: OptionArg) -> OptionArgValue {
+    pub fn take_option_arg<T: FromStr>(
+        &mut self,
+        spec: OptionArg,
+    ) -> Result<Option<T>, ParseError<T::Err>> {
         todo!()
     }
 
@@ -30,24 +33,6 @@ impl CliArgs {
 pub struct ParseError<E> {
     // TODO: arg info
     pub error: E,
-}
-
-#[derive(Debug)]
-pub struct ArgValue {}
-
-impl ArgValue {
-    pub fn parse<T: FromStr>(&self) -> Result<T, ParseError<T::Err>> {
-        todo!()
-    }
-}
-
-#[derive(Debug)]
-pub struct OptionArgValue {}
-
-impl OptionArgValue {
-    pub fn parse<T: FromStr>(&self) -> Result<Option<T>, ParseError<T::Err>> {
-        todo!()
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
