@@ -13,9 +13,9 @@ impl CliArgs {
         todo!()
     }
 
-    pub fn take_option_arg<T: FromStr>(
+    pub fn take_optional_arg<T: FromStr>(
         &mut self,
-        spec: OptionArg,
+        spec: Arg,
     ) -> Result<Option<T>, ParseError<T::Err>> {
         todo!()
     }
@@ -29,10 +29,13 @@ impl CliArgs {
     }
 }
 
+// TODO: struct?
 #[derive(Debug)]
-pub struct ParseError<E> {
-    // TODO: arg info
-    pub error: E,
+pub enum ParseError<E> {
+    InvalidValue {
+        // TODO: arg info
+        error: E,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -46,18 +49,6 @@ pub struct Arg {
     hidden_env: Option<&'static str>,
     default_value: Option<&'static str>,
     example_value: Option<&'static str>,
-}
-
-#[derive(Debug, Clone, Copy)]
-#[expect(dead_code)]
-pub struct OptionArg {
-    long_name: Option<&'static str>,
-    short_name: Option<char>,
-    value_name: Option<&'static str>,
-    doc: Option<&'static str>,
-    env: Option<&'static str>,
-    hidden_env: Option<&'static str>,
-    default_value: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Copy)]
