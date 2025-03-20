@@ -3,7 +3,7 @@ use std::str::FromStr;
 #[derive(Debug, Clone, Copy)]
 enum LogEntry {
     Arg(Arg),
-    Flag(Flag),
+    Flag(FlagSpec),
     Subcommand(Subcommand),
 }
 
@@ -70,19 +70,14 @@ impl Args {
         todo!()
     }
 
-    pub fn take_flag(&mut self, flag: Flag) -> bool {
-        self.log.entries.push(LogEntry::Flag(flag));
+    pub fn take_flag(&mut self, spec: FlagSpec) -> Flag {
+        self.log.entries.push(LogEntry::Flag(spec));
 
-        self.raw_args
+        let raw_arg = self
+            .raw_args
             .iter_mut()
-            .find(|raw_arg| {
-                let Some(raw_arg) = raw_arg else {
-                    return false;
-                };
-                name_matches(raw_arg, flag.long_name, flag.short_name)
-            })
-            .map(|raw_arg| raw_arg.take())
-            .is_some()
+            .find_map(|raw_arg| raw_arg.take_if(|a| spec.matches(a)));
+        Flag::new(spec, raw_arg)
     }
 
     pub fn take_subcommand(&mut self, spec: Subcommand) -> bool {
@@ -95,17 +90,6 @@ impl Args {
 
     pub fn log(&self) -> &Log {
         &self.log
-    }
-}
-
-fn name_matches(raw_arg: &str, long_name: Option<&str>, short_name: Option<char>) -> bool {
-    if raw_arg.starts_with("--") {
-        Some(&raw_arg[2..]) == long_name
-    } else if raw_arg.starts_with('-') {
-        let mut chars = raw_arg[1..].chars();
-        (chars.next(), chars.next()) == (short_name, None)
-    } else {
-        false
     }
 }
 
@@ -161,16 +145,53 @@ impl Arg {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[expect(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FlagKind {
+    Long,
+    Short,
+    Env,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Flag {
+    spec: FlagSpec,
+    kind: Option<FlagKind>,
+}
+
+impl Flag {
+    fn new(spec: FlagSpec, raw_arg: Option<String>) -> Self {
+        let kind = if let Some(raw_arg) = raw_arg {
+            if raw_arg.starts_with("--") && Some(&raw_arg[2..]) == spec.long_name {
+                Some(FlagKind::Long)
+            } else {
+                Some(FlagKind::Short)
+            }
+        } else if spec.is_env_set() {
+            Some(FlagKind::Env)
+        } else {
+            None
+        };
+        Self { spec, kind }
+    }
+
+    pub fn is_present(&self) -> bool {
+        self.kind.is_some()
+    }
+
+    pub fn kind(&self) -> Option<FlagKind> {
+        self.kind
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FlagSpec {
     long_name: Option<&'static str>,
     short_name: Option<char>,
     doc: &'static str,
     env: Option<&'static str>,
 }
 
-impl Flag {
+impl FlagSpec {
     pub const HELP: Self = Self::new().long("help").short('h');
     pub const VERSION: Self = Self::new().long("version");
     pub const OPTIONS_END: Self = Self::new().long("");
@@ -203,6 +224,22 @@ impl Flag {
         self.env = Some(variable_name);
         self
     }
+
+    fn is_env_set(self) -> bool {
+        self.env
+            .is_some_and(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()))
+    }
+
+    fn matches(self, raw_arg: &str) -> bool {
+        if raw_arg.starts_with("--") {
+            Some(&raw_arg[2..]) == self.long_name
+        } else if raw_arg.starts_with('-') {
+            let mut chars = raw_arg[1..].chars();
+            (chars.next(), chars.next()) == (self.short_name, None)
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -231,17 +268,30 @@ mod tests {
     fn take_flag() {
         let mut args = Args::new(raw_args(&["test", "--foo", "--bar", "run", "-b"]));
 
-        let flag = Flag::new().long("foo");
-        assert!(args.take_flag(flag));
-        assert!(!args.take_flag(flag));
+        let flag = FlagSpec::new().long("foo");
+        assert!(args.take_flag(flag).is_present());
+        assert!(!args.take_flag(flag).is_present());
 
-        let flag = Flag::new().long("bar").short('b');
-        assert!(args.take_flag(flag));
-        assert!(args.take_flag(flag));
-        assert!(!args.take_flag(flag));
+        let flag = FlagSpec::new().long("bar").short('b');
+        assert!(args.take_flag(flag).is_present());
+        assert!(args.take_flag(flag).is_present());
+        assert!(!args.take_flag(flag).is_present());
 
         assert_eq!(args.remaining_raw_args().collect::<Vec<_>>(), ["run"]);
+
+        let mut args = Args::new(raw_args(&["test", "--foo=1"]));
+
+        let flag = FlagSpec::new().long("foo").env("TEST_TAKE_FLAG_FOO");
+        assert!(!args.take_flag(flag).is_present());
+
+        std::env::set_var("TEST_TAKE_FLAG_FOO", "1");
+        assert!(args.take_flag(flag).is_present());
     }
+
+    // #[test]
+    // fn take_arg() {
+    //     let mut args = Args::new(raw_args(&["test", "--foo=1", "bar", "-b", "2", "qux"]));
+    // }
 
     fn raw_args(args: &'static [&str]) -> impl 'static + Iterator<Item = String> {
         args.iter().map(|&a| a.to_owned())
