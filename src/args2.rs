@@ -5,7 +5,7 @@ use std::str::FromStr;
 enum LogEntry {
     Arg(ArgSpec),
     Flag(FlagSpec),
-    Subcommand(Vec<SubcommandSpec>),
+    Subcommand(SubcommandSpec),
 }
 
 #[derive(Debug)]
@@ -127,8 +127,8 @@ impl Args {
         Flag::new(spec, None, None)
     }
 
-    pub fn take_subcommand(&mut self, specs: &[SubcommandSpec]) -> Subcommand {
-        self.log.entries.push(LogEntry::Subcommand(specs.to_vec()));
+    pub fn take_subcommand(&mut self, spec: SubcommandSpec) -> Subcommand {
+        self.log.entries.push(LogEntry::Subcommand(spec));
 
         todo!()
     }
@@ -146,10 +146,15 @@ impl Args {
 
 #[derive(Debug)]
 pub enum SubcommandError {
-    Todo,
     UnexpectedArgsBeforeSubcommand,
     UnexpectedSubcommandName,
     SubcommandNotFound,
+}
+
+impl SubcommandError {
+    pub fn guess(_args: &Args) -> Self {
+        todo!()
+    }
 }
 
 #[derive(Debug)]
@@ -162,7 +167,7 @@ pub enum ParseError<E> {
     InvalidValue {
         spec: ArgSpec,
         kind: ArgKind,
-        error: E,
+        error: E, // TODO: reason: String
     },
     NotFound {
         spec: ArgSpec,
@@ -257,6 +262,17 @@ impl Arg {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PositionalArgSpec {
+    value_name: &'static str,
+    doc: &'static str,
+    default_value: Option<&'static str>,
+    example_value: Option<&'static str>,
+    before_index: Option<usize>,
+    after_index: Option<usize>,
+}
+
+// TODO: Arg -> PositionalArg and NamedArg
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ArgSpec {
     long_name: Option<&'static str>,
@@ -460,25 +476,21 @@ impl FlagSpec {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Subcommand {
-    spec: Option<SubcommandSpec>,
     // TODO: index
+    is_present: bool,
 }
 
 impl Subcommand {
     pub fn is_present(self) -> bool {
-        self.spec.is_some()
-    }
-
-    pub fn name(self) -> Result<&'static str, SubcommandError> {
-        self.spec.map(|s| s.name).ok_or(SubcommandError::Todo)
+        self.is_present
     }
 }
 
-// TODO: SubcommandsSpec(?) for before / after
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SubcommandSpec {
     name: &'static str,
     doc: Option<&'static str>,
+    // before / after
 }
 
 impl SubcommandSpec {
