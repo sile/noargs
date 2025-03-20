@@ -88,11 +88,30 @@ impl Args {
     pub fn take_flag(&mut self, spec: FlagSpec) -> Flag {
         self.log.entries.push(LogEntry::Flag(spec));
 
-        let raw_arg = self
-            .raw_args
-            .iter_mut()
-            .find_map(|raw_arg| raw_arg.take_if(|a| spec.matches(a)));
-        Flag::new(spec, raw_arg)
+        let mut kind = None;
+        for raw_arg in &mut self.raw_args {
+            let Some(maybe_flag) = raw_arg else {
+                continue;
+            };
+
+            if maybe_flag.starts_with("--") {
+                if Some(&maybe_flag[2..]) == spec.long_name {
+                    kind = Some(FlagKind::LongName);
+                    *raw_arg = None;
+                    break;
+                }
+            } else if let Some(name) = spec.short_name.filter(|_| maybe_flag.starts_with('-')) {
+                if let Some((i, _)) = maybe_flag[1..].char_indices().find(|(_, c)| *c == name) {
+                    kind = Some(FlagKind::ShortName);
+                    maybe_flag.remove(i + 1);
+                    if maybe_flag.len() == 1 {
+                        *raw_arg = None;
+                    }
+                    break;
+                }
+            }
+        }
+        Flag::new(spec, kind)
     }
 
     pub fn take_subcommand(&mut self, specs: &[SubcommandSpec]) -> Subcommand {
@@ -101,7 +120,7 @@ impl Args {
         todo!()
     }
 
-    // TODO: pub fn split() // for '--' and subcommand
+    // TODO: pub fn set_options_end() // for '--'
 
     // TODO: rename (e.g., check_unexpected_args())
     pub fn finish(self) -> Result<(), FinishError> {
@@ -115,6 +134,9 @@ impl Args {
 #[derive(Debug)]
 pub enum SubcommandError {
     Todo,
+    UnexpectedArgsBeforeSubcommand,
+    UnexpectedSubcommandName,
+    SubcommandNotFound,
 }
 
 #[derive(Debug)]
@@ -319,22 +341,17 @@ pub enum FlagKind {
 pub struct Flag {
     spec: FlagSpec,
     kind: Option<FlagKind>,
-    // TODO: index
 }
 
 impl Flag {
-    fn new(spec: FlagSpec, raw_arg: Option<String>) -> Self {
-        let kind = if let Some(raw_arg) = raw_arg {
-            if raw_arg.starts_with("--") {
-                Some(FlagKind::LongName)
+    fn new(spec: FlagSpec, kind: Option<FlagKind>) -> Self {
+        let kind = kind.or_else(|| {
+            if spec.is_env_set() {
+                Some(FlagKind::EnvVar)
             } else {
-                Some(FlagKind::ShortName)
+                None
             }
-        } else if spec.is_env_set() {
-            Some(FlagKind::EnvVar)
-        } else {
-            None
-        };
+        });
         Self { spec, kind }
     }
 
@@ -393,23 +410,11 @@ impl FlagSpec {
         self.env
             .is_some_and(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()))
     }
-
-    fn matches(self, raw_arg: &str) -> bool {
-        if raw_arg.starts_with("--") {
-            Some(&raw_arg[2..]) == self.long_name
-        } else if raw_arg.starts_with('-') {
-            let mut chars = raw_arg[1..].chars();
-            (chars.next(), chars.next()) == (self.short_name, None)
-        } else {
-            false
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct Subcommand {
     spec: Option<SubcommandSpec>,
-    // TODO: index
 }
 
 impl Subcommand {
@@ -469,12 +474,23 @@ mod tests {
 
         assert_eq!(args.remaining_raw_args().collect::<Vec<_>>(), ["run"]);
 
+        // TODO: split test case
         let mut args = Args::new(raw_args(&["test", "--foo=1"]));
 
         let flag = FlagSpec::new().long("foo").env("TEST_TAKE_FLAG_FOO");
         assert!(!args.take_flag(flag).is_present());
 
         std::env::set_var("TEST_TAKE_FLAG_FOO", "1");
+        assert!(args.take_flag(flag).is_present());
+
+        // TODO: split test case
+        let mut args = Args::new(raw_args(&["test", "-abc"]));
+
+        let flag = FlagSpec::new().short('b');
+        assert!(args.take_flag(flag).is_present());
+        assert!(!args.take_flag(flag).is_present());
+
+        let flag = FlagSpec::new().short('a');
         assert!(args.take_flag(flag).is_present());
     }
 
