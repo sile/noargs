@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy)]
 enum LogEntry {
-    Arg(Arg),
+    Arg(ArgSpec),
     Flag(FlagSpec),
     Subcommand(Subcommand),
 }
@@ -59,14 +59,7 @@ impl Args {
             .filter_map(|a| a.as_ref().map(|a| a.as_str()))
     }
 
-    pub fn take_arg<T: FromStr>(&mut self, spec: Arg) -> Result<T, TakeArgError<T::Err>> {
-        todo!()
-    }
-
-    pub fn take_optional_arg<T: FromStr>(
-        &mut self,
-        spec: Arg,
-    ) -> Result<Option<T>, TakeArgError<T::Err>> {
+    pub fn take_arg(&mut self, spec: ArgSpec) -> Arg {
         todo!()
     }
 
@@ -100,56 +93,124 @@ pub enum FinishError {
 }
 
 #[derive(Debug)]
-pub enum TakeArgError<E> {
-    ParseError {
-        arg_name: ArgName,
-        arg_value: String,
-        error: E,
+pub enum ParseError<E> {
+    InvalidValue {
+        error: E, // TODO
     },
-    MissingValue {
-        arg_name: ArgName,
-    },
+    MissingValue,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ArgName {
-    Long(&'static str),
-    Short(char),
-    Value(&'static str),
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ArgKind {
+    Positional,
+    LongName,
+    ShortName,
+    EnvVar,
+    Default,
+    Example,
 }
 
-#[derive(Debug, Clone, Copy)]
-#[expect(dead_code)]
+#[derive(Debug, Clone)]
 pub struct Arg {
-    long_name: Option<&'static str>,
-    short_name: Option<char>,
-    value_name: Option<&'static str>, // TODO: remove Option
-    doc: Option<&'static str>,        // TODO: remove Option
-    env: Option<&'static str>,
-    hidden_env: Option<&'static str>,
-    default_value: Option<&'static str>,
+    spec: ArgSpec,
+    kind: Option<ArgKind>,
+    raw_arg: Option<String>,
 }
 
 impl Arg {
-    pub fn representive_name(self) -> ArgName {
+    pub fn parse<T: FromStr>(&self) -> Result<T, ParseError<T::Err>> {
         todo!()
     }
 
-    pub fn default_if(mut self, cond: bool, default: &'static str) -> Self {
-        if !cond {
-            return self;
-        }
+    pub fn parse_if_present<T: FromStr>(&self) -> Result<Option<T>, ParseError<T::Err>> {
+        todo!()
+    }
 
-        self.default_value = Some(default);
+    pub fn is_present(&self) -> bool {
+        self.kind().is_some()
+    }
+
+    pub fn kind(&self) -> Option<ArgKind> {
+        self.kind
+    }
+
+    pub fn value(&self) -> Option<&str> {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ArgSpec {
+    long_name: Option<&'static str>,
+    short_name: Option<char>,
+    value_name: &'static str,
+    doc: &'static str,
+    env: Option<&'static str>,
+    sensitive: bool,
+    default_value: Option<&'static str>,
+    example_value: Option<&'static str>,
+}
+
+impl ArgSpec {
+    pub const fn new() -> Self {
+        Self {
+            long_name: None,
+            short_name: None,
+            value_name: "VALUE",
+            doc: "",
+            env: None,
+            sensitive: false,
+            default_value: None,
+            example_value: None,
+        }
+    }
+
+    pub const fn long(mut self, name: &'static str) -> Self {
+        self.long_name = Some(name);
+        self
+    }
+
+    pub const fn short(mut self, name: char) -> Self {
+        self.short_name = Some(name);
+        self
+    }
+
+    pub const fn value_name(mut self, name: &'static str) -> Self {
+        self.value_name = name;
+        self
+    }
+
+    pub const fn doc(mut self, doc: &'static str) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    pub const fn env(mut self, variable_name: &'static str) -> Self {
+        self.env = Some(variable_name);
+        self
+    }
+
+    pub const fn sensitive(mut self) -> Self {
+        self.sensitive = true;
+        self
+    }
+
+    pub const fn default(mut self, default_value: &'static str) -> Self {
+        self.default_value = Some(default_value);
+        self
+    }
+
+    pub const fn example(mut self, example_value: &'static str) -> Self {
+        self.example_value = Some(example_value);
         self
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FlagKind {
-    Long,
-    Short,
-    Env,
+    LongName,
+    ShortName,
+    EnvVar,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -162,12 +223,12 @@ impl Flag {
     fn new(spec: FlagSpec, raw_arg: Option<String>) -> Self {
         let kind = if let Some(raw_arg) = raw_arg {
             if raw_arg.starts_with("--") && Some(&raw_arg[2..]) == spec.long_name {
-                Some(FlagKind::Long)
+                Some(FlagKind::LongName)
             } else {
-                Some(FlagKind::Short)
+                Some(FlagKind::ShortName)
             }
         } else if spec.is_env_set() {
-            Some(FlagKind::Env)
+            Some(FlagKind::EnvVar)
         } else {
             None
         };
