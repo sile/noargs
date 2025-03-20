@@ -139,13 +139,48 @@ impl Arg {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[expect(dead_code)]
 pub struct Flag {
     long_name: Option<&'static str>,
     short_name: Option<char>,
-    doc: Option<&'static str>,
+    doc: &'static str,
     env: Option<&'static str>,
+}
+
+impl Flag {
+    pub const HELP: Self = Self::new().long("help").short('h');
+    pub const VERSION: Self = Self::new().long("version");
+    pub const OPTIONS_END: Self = Self::new().long("");
+
+    pub const fn new() -> Self {
+        Self {
+            long_name: None,
+            short_name: None,
+            doc: "",
+            env: None,
+        }
+    }
+
+    pub const fn long(mut self, name: &'static str) -> Self {
+        self.long_name = Some(name);
+        self
+    }
+
+    pub const fn short(mut self, name: char) -> Self {
+        self.short_name = Some(name);
+        self
+    }
+
+    pub const fn doc(mut self, doc: &'static str) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    pub const fn env(mut self, variable_name: &'static str) -> Self {
+        self.env = Some(variable_name);
+        self
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -168,6 +203,22 @@ mod tests {
         // `Args::new()` does not panic even if raw arguments are empty.
         let args = Args::new(raw_args(&[]));
         assert_eq!(args.remaining_raw_args().count(), 0);
+    }
+
+    #[test]
+    fn take_flag() {
+        let mut args = Args::new(raw_args(&["test", "--foo", "--bar", "run", "-b"]));
+
+        let flag = Flag::new().long("foo");
+        assert!(args.take_flag(flag));
+        assert!(!args.take_flag(flag));
+
+        let flag = Flag::new().long("--bar").short('b');
+        assert!(args.take_flag(flag));
+        assert!(args.take_flag(flag));
+        assert!(!args.take_flag(flag));
+
+        assert_eq!(args.remaining_raw_args().collect::<Vec<_>>(), ["run"]);
     }
 
     fn raw_args(args: &'static [&str]) -> impl 'static + Iterator<Item = String> {
