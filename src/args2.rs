@@ -47,7 +47,10 @@ impl Args {
     where
         I: Iterator<Item = String>,
     {
-        let raw_args = raw_args.skip(1).map(Some).collect();
+        let mut raw_args = raw_args.map(Some).collect::<Vec<_>>();
+        if !raw_args.is_empty() {
+            raw_args[0] = None;
+        }
         Self {
             raw_args,
             log: Log::new(),
@@ -88,30 +91,27 @@ impl Args {
     pub fn take_flag(&mut self, spec: FlagSpec) -> Flag {
         self.log.entries.push(LogEntry::Flag(spec));
 
-        let mut kind = None;
-        for raw_arg in &mut self.raw_args {
+        for (arg_index, raw_arg) in self.raw_args.iter_mut().enumerate() {
             let Some(maybe_flag) = raw_arg else {
                 continue;
             };
 
             if maybe_flag.starts_with("--") {
                 if Some(&maybe_flag[2..]) == spec.long_name {
-                    kind = Some(FlagKind::LongName);
                     *raw_arg = None;
-                    break;
+                    return Flag::new(spec, Some(FlagKind::LongName), Some(arg_index));
                 }
             } else if let Some(name) = spec.short_name.filter(|_| maybe_flag.starts_with('-')) {
                 if let Some((i, _)) = maybe_flag[1..].char_indices().find(|(_, c)| *c == name) {
-                    kind = Some(FlagKind::ShortName);
                     maybe_flag.remove(i + 1);
                     if maybe_flag.len() == 1 {
                         *raw_arg = None;
                     }
-                    break;
+                    return Flag::new(spec, Some(FlagKind::ShortName), Some(arg_index));
                 }
             }
         }
-        Flag::new(spec, kind)
+        Flag::new(spec, None, None)
     }
 
     pub fn take_subcommand(&mut self, specs: &[SubcommandSpec]) -> Subcommand {
@@ -341,10 +341,11 @@ pub enum FlagKind {
 pub struct Flag {
     spec: FlagSpec,
     kind: Option<FlagKind>,
+    index: Option<usize>,
 }
 
 impl Flag {
-    fn new(spec: FlagSpec, kind: Option<FlagKind>) -> Self {
+    fn new(spec: FlagSpec, kind: Option<FlagKind>, index: Option<usize>) -> Self {
         let kind = kind.or_else(|| {
             if spec.is_env_set() {
                 Some(FlagKind::EnvVar)
@@ -352,15 +353,19 @@ impl Flag {
                 None
             }
         });
-        Self { spec, kind }
+        Self { spec, kind, index }
     }
 
-    pub fn is_present(&self) -> bool {
+    pub fn is_present(self) -> bool {
         self.kind.is_some()
     }
 
-    pub fn kind(&self) -> Option<FlagKind> {
+    pub fn kind(self) -> Option<FlagKind> {
         self.kind
+    }
+
+    pub fn index(self) -> Option<usize> {
+        self.index
     }
 }
 
@@ -468,8 +473,8 @@ mod tests {
         assert!(!args.take_flag(flag).is_present());
 
         let flag = FlagSpec::new().long("bar").short('b');
-        assert!(args.take_flag(flag).is_present());
-        assert!(args.take_flag(flag).is_present());
+        assert_eq!(args.take_flag(flag).index(), Some(2));
+        assert_eq!(args.take_flag(flag).index(), Some(4));
         assert!(!args.take_flag(flag).is_present());
 
         assert_eq!(args.remaining_raw_args().collect::<Vec<_>>(), ["run"]);
