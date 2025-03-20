@@ -1,12 +1,40 @@
 use std::str::FromStr;
 
-#[derive(Debug)]
-#[expect(dead_code)]
-pub struct CliArgs {
-    raw_args: Vec<Option<String>>,
+#[derive(Debug, Clone, Copy)]
+enum LogEntry {
+    Arg(Arg),
+    Flag(Flag),
+    Subcommand(Subcommand),
 }
 
-impl CliArgs {
+#[derive(Debug)]
+struct Log {
+    entries: Vec<LogEntry>,
+}
+
+#[derive(Debug)]
+#[expect(dead_code)]
+pub struct HelpBuilder<'a> {
+    log: &'a Log,
+    app_name: &'static str,
+    app_description: &'static str,
+    for_terminal: bool,
+}
+
+impl<'a> HelpBuilder<'a> {
+    pub fn build(self) -> String {
+        todo!()
+    }
+}
+
+#[derive(Debug)]
+#[expect(dead_code)]
+pub struct Args {
+    raw_args: Vec<Option<String>>,
+    log: Log,
+}
+
+impl Args {
     pub fn take_arg<T: FromStr>(&mut self, spec: Arg) -> Result<T, TakeArgError<T::Err>> {
         todo!()
     }
@@ -26,12 +54,12 @@ impl CliArgs {
         todo!()
     }
 
-    pub fn build_help_text(&self, _for_terminal: bool) -> String {
+    pub fn finish(self) -> Result<(), FinishError> {
         todo!()
     }
 
-    pub fn finish(self) -> Result<(), FinishError> {
-        todo!()
+    pub fn log(&self) -> &Log {
+        &self.log
     }
 }
 
