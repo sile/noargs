@@ -1,10 +1,11 @@
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
+#[derive(Debug, Clone)]
 enum LogEntry {
     Arg(ArgSpec),
     Flag(FlagSpec),
-    Subcommand(Subcommand),
+    Subcommand(Vec<SubcommandSpec>),
 }
 
 #[derive(Debug)]
@@ -94,23 +95,31 @@ impl Args {
         Flag::new(spec, raw_arg)
     }
 
-    pub fn take_subcommand(&mut self, spec: Subcommand) -> bool {
+    pub fn take_subcommand(&mut self, specs: &[SubcommandSpec]) -> Subcommand {
+        self.log.entries.push(LogEntry::Subcommand(specs.to_vec()));
+
         todo!()
     }
 
+    // TODO: pub fn split() // for '--' and subcommand
+
+    // TODO: rename (e.g., check_unexpected_args())
     pub fn finish(self) -> Result<(), FinishError> {
         todo!()
     }
 
-    pub fn log(&self) -> &Log {
-        &self.log
-    }
+    // TODO: rename
+    pub fn subcommand_error(self) {}
+}
+
+#[derive(Debug)]
+pub enum SubcommandError {
+    Todo,
 }
 
 #[derive(Debug)]
 pub enum FinishError {
-    UnknownArgs,
-    UnknownSubcommand,
+    UnexpectedArg,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -310,6 +319,7 @@ pub enum FlagKind {
 pub struct Flag {
     spec: FlagSpec,
     kind: Option<FlagKind>,
+    // TODO: index
 }
 
 impl Flag {
@@ -397,10 +407,36 @@ impl FlagSpec {
 }
 
 #[derive(Debug, Clone, Copy)]
-#[expect(dead_code)]
 pub struct Subcommand {
+    spec: Option<SubcommandSpec>,
+    // TODO: index
+}
+
+impl Subcommand {
+    pub fn is_present(self) -> bool {
+        self.spec.is_some()
+    }
+
+    pub fn name(self) -> Result<&'static str, SubcommandError> {
+        self.spec.map(|s| s.name).ok_or(SubcommandError::Todo)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SubcommandSpec {
     name: &'static str,
     doc: Option<&'static str>,
+}
+
+impl SubcommandSpec {
+    pub const fn new(name: &'static str) -> Self {
+        Self { name, doc: None }
+    }
+
+    pub const fn doc(mut self, doc: &'static str) -> Self {
+        self.doc = Some(doc);
+        self
+    }
 }
 
 #[cfg(test)]
