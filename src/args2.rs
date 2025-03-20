@@ -4,8 +4,6 @@ use std::str::FromStr;
 #[expect(dead_code)]
 pub struct CliArgs {
     raw_args: Vec<Option<String>>,
-    positional_args_start: usize,
-    named_args_end: usize,
 }
 
 impl CliArgs {
@@ -27,15 +25,29 @@ impl CliArgs {
     pub fn take_subcommand(&mut self, spec: Subcommand) -> bool {
         todo!()
     }
+
+    pub fn build_help_text(&self, _for_terminal: bool) -> String {
+        todo!()
+    }
+
+    pub fn finish(self) -> Result<(), FinishError> {
+        todo!()
+    }
 }
 
-// TODO: struct?
+#[derive(Debug)]
+pub enum FinishError {
+    UnknownArgs,
+    UnknownSubcommand,
+}
+
 #[derive(Debug)]
 pub enum ParseError<E> {
     InvalidValue {
         // TODO: arg info
         error: E,
     },
+    UnconsumedSubcommand,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -48,7 +60,17 @@ pub struct Arg {
     env: Option<&'static str>,
     hidden_env: Option<&'static str>,
     default_value: Option<&'static str>,
-    example_value: Option<&'static str>,
+}
+
+impl Arg {
+    pub fn default_if(mut self, cond: bool, default: &'static str) -> Self {
+        if !cond {
+            return self;
+        }
+
+        self.default_value = Some(default);
+        self
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
