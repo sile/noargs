@@ -12,6 +12,14 @@ struct Log {
     entries: Vec<LogEntry>,
 }
 
+impl Log {
+    fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 #[expect(dead_code)]
 pub struct HelpBuilder<'a> {
@@ -28,13 +36,29 @@ impl<'a> HelpBuilder<'a> {
 }
 
 #[derive(Debug)]
-#[expect(dead_code)]
 pub struct Args {
     raw_args: Vec<Option<String>>,
     log: Log,
 }
 
 impl Args {
+    pub fn new<I>(raw_args: I) -> Self
+    where
+        I: Iterator<Item = String>,
+    {
+        let raw_args = raw_args.skip(1).map(Some).collect();
+        Self {
+            raw_args,
+            log: Log::new(),
+        }
+    }
+
+    pub fn remaining_raw_args(&self) -> impl Iterator<Item = &str> {
+        self.raw_args
+            .iter()
+            .filter_map(|a| a.as_ref().map(|a| a.as_str()))
+    }
+
     pub fn take_arg<T: FromStr>(&mut self, spec: Arg) -> Result<T, TakeArgError<T::Err>> {
         todo!()
     }
@@ -129,4 +153,24 @@ pub struct Flag {
 pub struct Subcommand {
     name: &'static str,
     doc: Option<&'static str>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn args_new() {
+        // The first raw argument is regarded as the command name and will be ignored.
+        let args = Args::new(raw_args(&["test", "run"]));
+        assert_eq!(args.remaining_raw_args().count(), 1);
+
+        // `Args::new()` does not panic even if raw arguments are empty.
+        let args = Args::new(raw_args(&[]));
+        assert_eq!(args.remaining_raw_args().count(), 0);
+    }
+
+    fn raw_args(args: &'static [&str]) -> impl 'static + Iterator<Item = String> {
+        args.iter().map(|&a| a.to_owned())
+    }
 }
