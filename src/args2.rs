@@ -113,12 +113,15 @@ pub enum FinishError {
     UnknownSubcommand,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ParseError<E> {
     InvalidValue {
         spec: ArgSpec,
         kind: ArgKind,
         error: E,
+    },
+    NotFound {
+        spec: ArgSpec,
     },
     MissingValue {
         spec: ArgSpec,
@@ -170,19 +173,25 @@ impl Arg {
 
     pub fn parse<T: FromStr>(&self) -> Result<T, ParseError<T::Err>> {
         self.parse_if_present()
-            .and_then(|v| v.ok_or_else(|| ParseError::MissingValue { spec: self.spec }))
+            .and_then(|v| v.ok_or_else(|| ParseError::NotFound { spec: self.spec }))
     }
 
     pub fn parse_if_present<T: FromStr>(&self) -> Result<Option<T>, ParseError<T::Err>> {
-        self.value()
-            .map(|v| {
-                v.parse().map_err(|error| ParseError::InvalidValue {
-                    spec: self.spec,
-                    kind: self.kind.expect("infallible"),
-                    error,
-                })
+        let Some(value) = self.value() else {
+            if self.kind.is_some() {
+                return Err(ParseError::MissingValue { spec: self.spec });
+            } else {
+                return Ok(None);
+            }
+        };
+        value
+            .parse()
+            .map_err(|error| ParseError::InvalidValue {
+                spec: self.spec,
+                kind: self.kind.expect("infallible"),
+                error,
             })
-            .transpose()
+            .map(Some)
     }
 
     pub fn is_present(&self) -> bool {
@@ -282,8 +291,10 @@ impl ArgSpec {
         self
     }
 
-    pub const fn example(mut self, example_value: &'static str) -> Self {
-        self.example_value = Some(example_value);
+    pub const fn example_if(mut self, condition: bool, example_value: &'static str) -> Self {
+        if condition {
+            self.example_value = Some(example_value);
+        }
         self
     }
 }
@@ -431,10 +442,29 @@ mod tests {
         assert!(args.take_flag(flag).is_present());
     }
 
-    // #[test]
-    // fn take_arg() {
-    //     let mut args = Args::new(raw_args(&["test", "--foo=1", "bar", "-b", "2", "qux"]));
-    // }
+    #[test]
+    fn take_arg() {
+        let mut args = Args::new(raw_args(&["test", "--foo=1", "bar", "-b", "2", "qux"]));
+
+        let arg = ArgSpec::new().short('b');
+        assert_eq!(args.take_arg(arg).parse(), Ok(2));
+
+        let arg = ArgSpec::new().long("foo");
+        assert_eq!(args.take_arg(arg).parse(), Ok(1));
+
+        let arg = ArgSpec::new().long("bar").default("3");
+        assert_eq!(args.take_arg(arg).parse(), Ok(3));
+
+        let arg = ArgSpec::new();
+        assert_eq!(args.take_arg(arg).parse(), Ok("bar".to_owned()));
+
+        let arg = ArgSpec::new();
+        assert_eq!(args.take_arg(arg).parse(), Ok("qux".to_owned()));
+
+        assert_eq!(args.remaining_raw_args().count(), 0);
+
+        // TODO: error cases
+    }
 
     fn raw_args(args: &'static [&str]) -> impl 'static + Iterator<Item = String> {
         args.iter().map(|&a| a.to_owned())
