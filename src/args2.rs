@@ -70,8 +70,19 @@ impl Args {
         todo!()
     }
 
-    pub fn take_flag(&mut self, spec: Flag) -> bool {
-        todo!()
+    pub fn take_flag(&mut self, flag: Flag) -> bool {
+        self.log.entries.push(LogEntry::Flag(flag));
+
+        self.raw_args
+            .iter_mut()
+            .find(|raw_arg| {
+                let Some(raw_arg) = raw_arg else {
+                    return false;
+                };
+                name_matches(raw_arg, flag.long_name, flag.short_name)
+            })
+            .map(|raw_arg| raw_arg.take())
+            .is_some()
     }
 
     pub fn take_subcommand(&mut self, spec: Subcommand) -> bool {
@@ -84,6 +95,17 @@ impl Args {
 
     pub fn log(&self) -> &Log {
         &self.log
+    }
+}
+
+fn name_matches(raw_arg: &str, long_name: Option<&str>, short_name: Option<char>) -> bool {
+    if raw_arg.starts_with("--") {
+        Some(&raw_arg[2..]) == long_name
+    } else if raw_arg.starts_with('-') {
+        let mut chars = raw_arg[1..].chars();
+        (chars.next(), chars.next()) == (short_name, None)
+    } else {
+        false
     }
 }
 
@@ -213,7 +235,7 @@ mod tests {
         assert!(args.take_flag(flag));
         assert!(!args.take_flag(flag));
 
-        let flag = Flag::new().long("--bar").short('b');
+        let flag = Flag::new().long("bar").short('b');
         assert!(args.take_flag(flag));
         assert!(args.take_flag(flag));
         assert!(!args.take_flag(flag));
