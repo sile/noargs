@@ -62,14 +62,27 @@ impl Args {
     pub fn take_arg(&mut self, spec: ArgSpec) -> Arg {
         self.log.entries.push(LogEntry::Arg(spec));
 
-        let raw_arg = if spec.is_named() {
-            self.raw_args
-                .iter_mut()
-                .find_map(|raw_arg| raw_arg.take_if(|a| spec.matches(a)))
-        } else {
-            self.raw_args.iter_mut().find_map(|raw_arg| raw_arg.take())
-        };
-        Arg::new(spec, raw_arg)
+        if !spec.is_named() {
+            let value = self.raw_args.iter_mut().find_map(|raw_arg| raw_arg.take());
+            return Arg::new(spec, None, value);
+        }
+
+        for i in 0..self.raw_args.len() {
+            let Some(raw_arg) = self.raw_args[i].take_if(|a| spec.name_matches(a)) else {
+                continue;
+            };
+
+            let mut tokens = raw_arg.splitn(2, '=');
+            if let (Some(name), Some(value)) = (tokens.next(), tokens.next()) {
+                return Arg::new(spec, Some(name), Some(value.to_owned()));
+            } else if let Some(value) = self.raw_args.get_mut(i + 1).and_then(|a| a.take()) {
+                return Arg::new(spec, Some(&raw_arg), Some(value));
+            } else {
+                break;
+            }
+        }
+
+        Arg::new(spec, None, None)
     }
 
     pub fn take_flag(&mut self, spec: FlagSpec) -> Flag {
@@ -127,19 +140,23 @@ pub enum ArgKind {
 pub struct Arg {
     spec: ArgSpec,
     kind: Option<ArgKind>,
-    raw_arg: Option<String>,
+    value: Option<String>,
 }
 
 impl Arg {
-    pub fn new(spec: ArgSpec, mut raw_arg: Option<String>) -> Self {
-        let kind = if let Some(raw_arg) = &raw_arg {
-            if raw_arg.starts_with("--") {
-                Some(ArgKind::LongName)
+    pub fn new(spec: ArgSpec, name: Option<&str>, mut value: Option<String>) -> Self {
+        let kind = if value.is_some() {
+            if let Some(name) = name {
+                if name.starts_with("--") {
+                    Some(ArgKind::LongName)
+                } else {
+                    Some(ArgKind::ShortName)
+                }
             } else {
-                Some(ArgKind::ShortName)
+                Some(ArgKind::Positional)
             }
-        } else if let Some(value) = spec.env.and_then(|name| std::env::var(name).ok()) {
-            raw_arg = Some(value);
+        } else if let Some(v) = spec.env.and_then(|name| std::env::var(name).ok()) {
+            value = Some(v);
             Some(ArgKind::EnvVar)
         } else if spec.default_value.is_some() {
             Some(ArgKind::Default)
@@ -149,11 +166,7 @@ impl Arg {
             None
         };
 
-        Self {
-            spec,
-            kind,
-            raw_arg,
-        }
+        Self { spec, kind, value }
     }
 
     pub fn parse<T: FromStr>(&self) -> Result<T, ParseError<T::Err>> {
@@ -184,7 +197,7 @@ impl Arg {
     pub fn value(&self) -> Option<&str> {
         match self.kind? {
             ArgKind::Positional | ArgKind::LongName | ArgKind::ShortName | ArgKind::EnvVar => {
-                self.raw_arg.as_ref().map(|a| a.as_str())
+                self.value.as_ref().map(|a| a.as_str())
             }
             ArgKind::Default => self.spec.default_value,
             ArgKind::Example => self.spec.example_value,
@@ -209,7 +222,7 @@ impl ArgSpec {
         self.long_name.is_some() || self.short_name.is_some()
     }
 
-    fn matches(self, raw_arg: &str) -> bool {
+    fn name_matches(self, raw_arg: &str) -> bool {
         if raw_arg.starts_with("--") {
             let name = raw_arg[2..].splitn(2, '=').next().expect("infallible");
             Some(name) == self.long_name
