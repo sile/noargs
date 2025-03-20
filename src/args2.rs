@@ -72,8 +72,7 @@ impl Args {
                 continue;
             };
 
-            let mut tokens = raw_arg.splitn(2, '=');
-            if let (Some(name), Some(value)) = (tokens.next(), tokens.next()) {
+            if let Some((name, value)) = raw_arg.split_once('=') {
                 return Arg::new(spec, Some(name), Some(value.to_owned()));
             } else if let Some(value) = self.raw_args.get_mut(i + 1).and_then(|a| a.take()) {
                 return Arg::new(spec, Some(&raw_arg), Some(value));
