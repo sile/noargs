@@ -66,12 +66,20 @@ impl Args {
     pub fn take_arg(&mut self, spec: ArgSpec) -> Arg {
         self.log.entries.push(LogEntry::Arg(spec));
 
+        let after_index = spec.after_index.unwrap_or(0);
+        let before_index = spec.before_index.unwrap_or(self.raw_args.len());
+
         if !spec.is_named() {
-            let value = self.raw_args.iter_mut().find_map(|raw_arg| raw_arg.take());
+            let value = self.raw_args[after_index..before_index]
+                .iter_mut()
+                .find_map(|raw_arg| raw_arg.take());
             return Arg::new(spec, None, value);
         }
 
         for i in 0..self.raw_args.len() {
+            if !(after_index..before_index).contains(&i) {
+                continue;
+            }
             let Some(raw_arg) = self.raw_args[i].take_if(|a| spec.name_matches(a)) else {
                 continue;
             };
@@ -91,7 +99,12 @@ impl Args {
     pub fn take_flag(&mut self, spec: FlagSpec) -> Flag {
         self.log.entries.push(LogEntry::Flag(spec));
 
+        let after_index = spec.after_index.unwrap_or(0);
+        let before_index = spec.before_index.unwrap_or(self.raw_args.len());
         for (arg_index, raw_arg) in self.raw_args.iter_mut().enumerate() {
+            if !(after_index..before_index).contains(&arg_index) {
+                continue;
+            }
             let Some(maybe_flag) = raw_arg else {
                 continue;
             };
@@ -254,6 +267,8 @@ pub struct ArgSpec {
     sensitive: bool,
     default_value: Option<&'static str>,
     example_value: Option<&'static str>,
+    before_index: Option<usize>,
+    after_index: Option<usize>,
 }
 
 impl ArgSpec {
@@ -284,6 +299,8 @@ impl ArgSpec {
             sensitive: false,
             default_value: None,
             example_value: None,
+            before_index: None,
+            after_index: None,
         }
     }
 
@@ -326,6 +343,16 @@ impl ArgSpec {
         if condition {
             self.example_value = Some(example_value);
         }
+        self
+    }
+
+    pub const fn before(mut self, index: Option<usize>) -> Self {
+        self.before_index = index;
+        self
+    }
+
+    pub const fn after(mut self, index: Option<usize>) -> Self {
+        self.after_index = index;
         self
     }
 }
@@ -375,12 +402,14 @@ pub struct FlagSpec {
     short_name: Option<char>,
     doc: &'static str,
     env: Option<&'static str>,
+    before_index: Option<usize>,
+    after_index: Option<usize>,
 }
 
 impl FlagSpec {
     pub const HELP: Self = Self::new().long("help").short('h');
     pub const VERSION: Self = Self::new().long("version");
-    pub const OPTIONS_END: Self = Self::new().long("");
+    pub const OPTIONS_END: Self = Self::new().long(""); // TODO: rename
 
     pub const fn new() -> Self {
         Self {
@@ -388,6 +417,8 @@ impl FlagSpec {
             short_name: None,
             doc: "",
             env: None,
+            before_index: None,
+            after_index: None,
         }
     }
 
@@ -411,6 +442,16 @@ impl FlagSpec {
         self
     }
 
+    pub const fn before(mut self, index: Option<usize>) -> Self {
+        self.before_index = index;
+        self
+    }
+
+    pub const fn after(mut self, index: Option<usize>) -> Self {
+        self.after_index = index;
+        self
+    }
+
     fn is_env_set(self) -> bool {
         self.env
             .is_some_and(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()))
@@ -420,6 +461,7 @@ impl FlagSpec {
 #[derive(Debug, Clone, Copy)]
 pub struct Subcommand {
     spec: Option<SubcommandSpec>,
+    // TODO: index
 }
 
 impl Subcommand {
@@ -432,6 +474,7 @@ impl Subcommand {
     }
 }
 
+// TODO: SubcommandsSpec(?) for before / after
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SubcommandSpec {
     name: &'static str,
@@ -497,6 +540,16 @@ mod tests {
 
         let flag = FlagSpec::new().short('a');
         assert!(args.take_flag(flag).is_present());
+
+        //
+        let mut args = Args::new(raw_args(&["test", "--foo", "--", "--bar"]));
+        let index = args.take_flag(FlagSpec::OPTIONS_END).index();
+
+        let flag = FlagSpec::new().long("foo").before(index);
+        assert!(args.take_flag(flag).is_present());
+
+        let flag = FlagSpec::new().long("bar").before(index);
+        assert!(!args.take_flag(flag).is_present());
     }
 
     #[test]
