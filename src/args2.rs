@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{os::android, str::FromStr};
 
 #[derive(Debug)]
 #[expect(dead_code)]
@@ -7,14 +7,14 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
-    pub fn take_arg<T: FromStr>(&mut self, spec: Arg) -> Result<T, ParseError<T::Err>> {
+    pub fn take_arg<T: FromStr>(&mut self, spec: Arg) -> Result<T, TakeArgError<T::Err>> {
         todo!()
     }
 
     pub fn take_optional_arg<T: FromStr>(
         &mut self,
         spec: Arg,
-    ) -> Result<Option<T>, ParseError<T::Err>> {
+    ) -> Result<Option<T>, TakeArgError<T::Err>> {
         todo!()
     }
 
@@ -42,12 +42,22 @@ pub enum FinishError {
 }
 
 #[derive(Debug)]
-pub enum ParseError<E> {
-    InvalidValue {
-        // TODO: arg info
+pub enum TakeArgError<E> {
+    ParseError {
+        arg_name: ArgName,
+        arg_value: String,
         error: E,
     },
-    UnconsumedSubcommand,
+    MissingValue {
+        arg_name: ArgName,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArgName {
+    Long(&'static str),
+    Short(char),
+    Value(&'static str),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -55,14 +65,18 @@ pub enum ParseError<E> {
 pub struct Arg {
     long_name: Option<&'static str>,
     short_name: Option<char>,
-    value_name: Option<&'static str>,
-    doc: Option<&'static str>,
+    value_name: Option<&'static str>, // TODO: remove Option
+    doc: Option<&'static str>,        // TODO: remove Option
     env: Option<&'static str>,
     hidden_env: Option<&'static str>,
     default_value: Option<&'static str>,
 }
 
 impl Arg {
+    pub fn representive_name(self) -> ArgName {
+        todo!()
+    }
+
     pub fn default_if(mut self, cond: bool, default: &'static str) -> Self {
         if !cond {
             return self;
