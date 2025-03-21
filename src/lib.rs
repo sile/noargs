@@ -1,5 +1,6 @@
+pub mod args; // TODO: private
 pub mod args2;
-// pub mod args;
+pub mod error;
 // pub mod arg;
 // pub mod opt;
 // pub mod flag;
