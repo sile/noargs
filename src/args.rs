@@ -36,7 +36,16 @@ impl Args {
     }
 
     pub fn finish(self) -> Result<(), Error> {
+        if self.raw_args.iter().any(|a| a.value.is_some()) {
+            return Err(Error::UnexpectedArg(self));
+        }
         Ok(())
+    }
+
+    pub(crate) fn next_raw_arg_value(&self) -> Option<&str> {
+        self.raw_args
+            .iter()
+            .find_map(|a| a.value.as_ref().map(|s| s.as_str()))
     }
 }
 
