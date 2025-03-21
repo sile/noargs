@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-// TODO: Add `sucess: bool`
 #[expect(dead_code)]
 #[derive(Debug, Clone)]
 enum LogEntry {
@@ -608,6 +607,7 @@ mod tests {
     fn take_subcommand() {
         let mut args = Args::new(raw_args(&["test", "--foo=1", "run", "--foo", "2"]));
 
+        // let Some(cmd) = Subcommand::new("run").try_take(&mut args);
         let cmd = args.take_subcommand(SubcommandSpec::new("run"));
         assert!(cmd.is_present());
 
