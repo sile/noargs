@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+// TODO: Add `sucess: bool`
 #[expect(dead_code)]
 #[derive(Debug, Clone)]
 enum LogEntry {
@@ -130,10 +131,22 @@ impl Args {
     pub fn take_subcommand(&mut self, spec: SubcommandSpec) -> Subcommand {
         self.log.entries.push(LogEntry::Subcommand(spec));
 
-        todo!()
-    }
+        // let after_index = spec.after_index.unwrap_or(0);
+        // let before_index = spec.before_index.unwrap_or(self.raw_args.len());
 
-    // TODO: pub fn set_options_end() // for '--'
+        for (i, raw_arg) in self.raw_args.iter_mut().enumerate() {
+            let Some(maybe_subcommand) = raw_arg else {
+                continue;
+            };
+
+            if maybe_subcommand == spec.name {
+                *raw_arg = None;
+                return Subcommand { index: Some(i) };
+            }
+        }
+
+        Subcommand { index: None }
+    }
 
     // TODO: rename (e.g., check_unexpected_args())
     pub fn finish(self) -> Result<(), FinishError> {
@@ -476,13 +489,16 @@ impl FlagSpec {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Subcommand {
-    // TODO: index
-    is_present: bool,
+    index: Option<usize>,
 }
 
 impl Subcommand {
     pub fn is_present(self) -> bool {
-        self.is_present
+        self.index.is_some()
+    }
+
+    pub fn index(self) -> Option<usize> {
+        self.index
     }
 }
 
@@ -586,6 +602,19 @@ mod tests {
         assert_eq!(args.remaining_raw_args().count(), 0);
 
         // TODO: error cases
+    }
+
+    #[test]
+    fn take_subcommand() {
+        let mut args = Args::new(raw_args(&["test", "--foo=1", "run", "--foo", "2"]));
+
+        let cmd = args.take_subcommand(SubcommandSpec::new("run"));
+        assert!(cmd.is_present());
+
+        let option = ArgSpec::new().long("foo").after(cmd.index());
+        assert_eq!(args.take_arg(option).parse(), Ok(2));
+
+        assert_eq!(args.remaining_raw_args().collect::<Vec<_>>(), ["--foo=1"]);
     }
 
     fn raw_args(args: &'static [&str]) -> impl 'static + Iterator<Item = String> {
