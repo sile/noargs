@@ -69,3 +69,30 @@ impl Formatter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_unexpected_arg() {
+        // Without `--help`.
+        let args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
+
+        let mut fmt = Formatter::new(false);
+        fmt.format_unexpected_arg(&args);
+        assert_eq!(fmt.text, "unexpected argument '--foo' found");
+
+        // With `--help`.
+        let mut args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
+        args.metadata_mut().help_option_name = Some("help");
+
+        let mut fmt = Formatter::new(false);
+        fmt.format_unexpected_arg(&args);
+        assert_eq!(
+            fmt.text,
+            r#"unexpected argument '--foo' found
+Try 'noargs --help' for more information."#
+        );
+    }
+}
