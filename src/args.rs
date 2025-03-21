@@ -1,5 +1,3 @@
-use crate::error::Error;
-
 #[derive(Debug)]
 pub struct Args {
     metadata: Metadata,
@@ -23,8 +21,8 @@ impl Args {
         }
     }
 
-    pub fn metadata(&self) -> &Metadata {
-        &self.metadata
+    pub fn metadata(&self) -> Metadata {
+        self.metadata
     }
 
     pub fn metadata_mut(&mut self) -> &mut Metadata {
@@ -33,13 +31,6 @@ impl Args {
 
     pub fn raw_args(&self) -> &[RawArg] {
         &self.raw_args
-    }
-
-    pub fn finish(self) -> Result<(), Error> {
-        if self.raw_args.iter().any(|a| a.value.is_some()) {
-            return Err(Error::UnexpectedArg(self));
-        }
-        Ok(())
     }
 
     pub(crate) fn next_raw_arg_value(&self) -> Option<&str> {
