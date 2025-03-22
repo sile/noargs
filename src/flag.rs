@@ -40,6 +40,8 @@ impl FlagSpec {
     };
 
     pub fn take(self, args: &mut Args) -> Flag {
+        args.log_mut().record_flag(self);
+
         for (index, raw_arg) in args.raw_args_mut().iter_mut().enumerate() {
             let Some(value) = &mut raw_arg.value else {
                 continue;
@@ -109,7 +111,30 @@ impl Flag {
         }
     }
 
-    pub fn ok(self) -> Option<Flag> {
+    pub fn ok(self) -> Option<Self> {
         self.is_present().then_some(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn long_flag() {
+        let mut args = args(&["test", "--foo"]);
+        assert!(flag("foo").take(&mut args).is_present());
+        assert!(!flag("foo").take(&mut args).is_present());
+    }
+
+    fn args(raw_args: &[&str]) -> Args {
+        Args::new(raw_args.iter().map(|a| a.to_string()))
+    }
+
+    fn flag(long_name: &'static str) -> FlagSpec {
+        FlagSpec {
+            long: long_name,
+            ..Default::default()
+        }
     }
 }

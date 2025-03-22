@@ -10,15 +10,12 @@ impl Log {
         &self.entries
     }
 
-    pub fn record_flag(&mut self, spec: FlagSpec, index: Option<usize>) {
-        self.entries.push(LogEntry::Flag { spec, index });
+    pub fn record_flag(&mut self, spec: FlagSpec) {
+        self.entries.push(LogEntry::Flag(spec));
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum LogEntry {
-    Flag {
-        spec: FlagSpec,
-        index: Option<usize>,
-    },
+    Flag(FlagSpec),
 }

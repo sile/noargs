@@ -41,6 +41,10 @@ impl Args {
         &mut self.raw_args
     }
 
+    pub(crate) fn log_mut(&mut self) -> &mut Log {
+        &mut self.log
+    }
+
     pub(crate) fn next_raw_arg_value(&self) -> Option<&str> {
         self.raw_args
             .iter()
