@@ -1,4 +1,4 @@
-use crate::{flag::FlagSpec, log::Log};
+use crate::log::Log;
 
 #[derive(Debug)]
 pub struct Args {
@@ -69,19 +69,23 @@ pub struct RawArg {
     pub value: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Metadata {
     pub app_name: &'static str,
     pub app_description: &'static str,
-    pub help_flag: Option<FlagSpec>,
+    pub help_flag_name: Option<&'static str>,
+}
+
+impl Metadata {
+    pub const DEFAULT: Self = Self {
+        app_name: env!("CARGO_PKG_NAME"),
+        app_description: env!("CARGO_PKG_DESCRIPTION"),
+        help_flag_name: None,
+    };
 }
 
 impl Default for Metadata {
     fn default() -> Self {
-        Self {
-            app_name: env!("CARGO_PKG_NAME"),
-            app_description: env!("CARGO_PKG_DESCRIPTION"),
-            help_flag: None,
-        }
+        Self::DEFAULT
     }
 }

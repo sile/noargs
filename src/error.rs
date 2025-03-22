@@ -6,6 +6,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub enum Error {
     UnexpectedArg { metadata: Metadata, arg: String },
+    //ParseArgError{metadata:Metadata, arg: Arg},
     Other(Box<dyn std::fmt::Display>),
 }
 
@@ -64,10 +65,10 @@ impl Formatter {
     fn format_unexpected_arg(&mut self, metadata: Metadata, arg: &str) {
         self.write(&format!("unexpected argument '{}' found", self.bold(arg)));
 
-        if let Some(help) = metadata.help_flag {
+        if let Some(help_flag_name) = metadata.help_flag_name {
             self.write(&format!(
                 "\nTry '{}' for more information.",
-                self.bold(&format!("--{}", help.name))
+                self.bold(&format!("--{help_flag_name}"))
             ));
         }
     }
@@ -87,8 +88,6 @@ impl Formatter {
 
 #[cfg(test)]
 mod tests {
-    use crate::flag::FlagSpec;
-
     use super::*;
 
     #[test]
@@ -104,7 +103,7 @@ mod tests {
 
         // Error with `--help`.
         let mut args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
-        args.metadata_mut().help_flag = Some(FlagSpec::HELP);
+        args.metadata_mut().help_flag_name = Some("help");
         let e = Error::check_unexpected_arg(&args).expect_err("should error");
         assert_eq!(
             e.to_string(false),

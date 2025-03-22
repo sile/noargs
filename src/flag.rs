@@ -1,4 +1,4 @@
-use crate::args::Args;
+use crate::args::{Args, Metadata};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FlagSpec {
@@ -8,6 +8,7 @@ pub struct FlagSpec {
     pub env: &'static str,
     pub min_index: Option<usize>,
     pub max_index: Option<usize>,
+    pub metadata: Metadata,
 }
 
 impl FlagSpec {
@@ -18,6 +19,7 @@ impl FlagSpec {
         env: "",
         min_index: None,
         max_index: None,
+        metadata: Metadata::DEFAULT,
     };
 
     pub const HELP: Self = Self {
@@ -39,7 +41,8 @@ impl FlagSpec {
         ..Self::DEFAULT
     };
 
-    pub fn take(self, args: &mut Args) -> Flag {
+    pub fn take(mut self, args: &mut Args) -> Flag {
+        self.metadata = args.metadata();
         args.log_mut().record_flag(self);
 
         for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
@@ -109,10 +112,6 @@ impl Flag {
             Flag::Short { index, .. } | Flag::Long { index, .. } => Some(index),
             Flag::Env { .. } | Flag::None { .. } => None,
         }
-    }
-
-    pub fn ok(self) -> Option<Self> {
-        self.is_present().then_some(self)
     }
 }
 
