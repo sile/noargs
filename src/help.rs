@@ -78,18 +78,17 @@ impl<'a> HelpBuilder<'a> {
         for spec in &self.specs {
             match spec {
                 Spec::Arg(ArgSpec {
-                    name,
                     example: Some(value),
                     ..
                 }) => {
-                    self.fmt.write(&format!(" {} {}", name, value));
+                    self.fmt.write(&format!(" {value}"));
                 }
                 Spec::Opt(OptSpec {
                     name,
                     example: Some(value),
                     ..
                 }) => {
-                    self.fmt.write(&format!(" --{} {}", name, value));
+                    self.fmt.write(&format!(" --{name} {value}"));
                 }
                 _ => {}
             }
@@ -151,6 +150,10 @@ impl<'a> HelpBuilder<'a> {
         if let Some(env) = spec.env {
             self.fmt.write(&format!("          [env: {env}]\n"));
         }
+    }
+
+    fn has_positional_args(&self) -> bool {
+        self.specs.iter().any(|spec| matches!(spec, Spec::Opt(_)))
     }
 
     fn has_options(&self, include_requried: bool) -> bool {
@@ -243,6 +246,44 @@ Options:
             ty: "INTEGER",
             doc: "An integer",
             example: Some("10"),
+            ..Default::default()
+        }
+        .take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: noargs --foo <INTEGER> [OPTIONS]
+
+Example:
+  $ noargs --foo 10
+
+Options:
+  -h, --help
+          Print help
+  -f, --foo <INTEGER>
+          An integer
+"#
+        );
+    }
+
+    #[test]
+    fn positional_args_help() {
+        let mut args = args(&["noargs"]);
+        args.metadata_mut().app_description = "";
+        FlagSpec::HELP.take(&mut args);
+        ArgSpec {
+            name: "INT-0",
+            doc: "An integer",
+            example: Some("3"),
+            ..Default::default()
+        }
+        .take(&mut args);
+        ArgSpec {
+            name: "INT-1",
+            doc: "An integer",
+            default: Some("1"),
             ..Default::default()
         }
         .take(&mut args);
