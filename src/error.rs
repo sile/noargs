@@ -1,12 +1,25 @@
 use std::{borrow::Cow, io::IsTerminal};
 
-use crate::args::{Args, Metadata};
+use crate::{
+    arg::ArgSpec,
+    args::{Args, Metadata},
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub enum Error {
-    UnexpectedArg { metadata: Metadata, arg: String },
-    //ParseArgError{metadata:Metadata, arg: Arg},
+    UnexpectedArg {
+        metadata: Metadata,
+        arg: String,
+    },
+    ParseArgError {
+        arg: ArgSpec,
+        value: String,
+        reason: String,
+    },
+    MissingArgValue {
+        arg: ArgSpec,
+    },
     Other(Box<dyn std::fmt::Display>),
 }
 
@@ -27,6 +40,12 @@ impl Error {
         match self {
             Error::UnexpectedArg { metadata, arg } => {
                 fmt.format_unexpected_arg(*metadata, arg);
+            }
+            Error::ParseArgError { arg, value, reason } => {
+                todo!()
+            }
+            Error::MissingArgValue { arg } => {
+                todo!()
             }
             Error::Other(e) => {
                 fmt.text = e.to_string();

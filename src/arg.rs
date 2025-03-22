@@ -76,8 +76,27 @@ pub enum Arg {
 }
 
 impl Arg {
-    pub fn parse<T: FromStr>(&self) -> Result<T, Error> {
-        todo!()
+    pub fn parse<T>(&self) -> Result<T, Error>
+    where
+        T: FromStr,
+        T::Err: std::fmt::Display,
+    {
+        let value = self
+            .value()
+            .ok_or_else(|| Error::MissingArgValue { arg: self.spec() })?;
+        value.parse::<T>().map_err(|e| Error::ParseArgError {
+            arg: self.spec(),
+            value: value.to_owned(),
+            reason: e.to_string(),
+        })
+    }
+
+    pub fn parse_if_present<T>(&self) -> Result<Option<T>, Error>
+    where
+        T: FromStr,
+        T::Err: std::fmt::Display,
+    {
+        self.is_present().then(|| self.parse()).transpose()
     }
 
     pub fn spec(&self) -> ArgSpec {
