@@ -2,10 +2,10 @@ use crate::args::{Args, Metadata};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FlagSpec {
-    pub name: &'static str, // TODO: Option?
-    pub short: char,        // TODO: Option
+    pub name: &'static str,
+    pub short: Option<char>,
     pub doc: &'static str,
-    pub env: &'static str, // TODO: Option
+    pub env: Option<&'static str>,
     pub min_index: Option<usize>,
     pub max_index: Option<usize>,
     pub metadata: Metadata,
@@ -14,9 +14,9 @@ pub struct FlagSpec {
 impl FlagSpec {
     pub const DEFAULT: Self = Self {
         name: "",
-        short: '\0',
+        short: None,
         doc: "",
-        env: "",
+        env: None,
         min_index: None,
         max_index: None,
         metadata: Metadata::DEFAULT,
@@ -24,7 +24,7 @@ impl FlagSpec {
 
     pub const HELP: Self = Self {
         name: "help",
-        short: 'h',
+        short: Some('h'),
         doc: "Print help",
         ..Self::DEFAULT
     };
@@ -61,7 +61,7 @@ impl FlagSpec {
             } else if let Some(i) = value
                 .char_indices()
                 .skip(1)
-                .find_map(|(i, c)| (c == self.short).then_some(i))
+                .find_map(|(i, c)| (Some(c) == self.short).then_some(i))
             {
                 value.remove(i);
                 if value.len() == 1 {
@@ -71,7 +71,10 @@ impl FlagSpec {
             }
         }
 
-        if !self.env.is_empty() && std::env::var(self.env).is_ok_and(|v| !v.is_empty()) {
+        if self
+            .env
+            .is_some_and(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()))
+        {
             Flag::Env { spec: self }
         } else {
             Flag::None { spec: self }
@@ -147,7 +150,7 @@ mod tests {
 
         let flag = FlagSpec {
             name: "foo",
-            env: "TEST_ENV_FLAG_FOO",
+            env: Some("TEST_ENV_FLAG_FOO"),
             ..Default::default()
         };
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
@@ -188,7 +191,7 @@ mod tests {
     fn short_flag(short_name: char) -> FlagSpec {
         FlagSpec {
             name: "dummy",
-            short: short_name,
+            short: Some(short_name),
             ..Default::default()
         }
     }

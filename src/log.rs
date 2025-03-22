@@ -29,7 +29,7 @@ impl Log {
 }
 
 // TODO: rename?
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Spec {
     Arg(ArgSpec),
     Opt(OptSpec),
