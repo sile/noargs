@@ -1,4 +1,4 @@
-use crate::log::Log;
+use crate::{error::Error, log::Log};
 
 #[derive(Debug)]
 pub struct Args {
@@ -39,6 +39,10 @@ impl Args {
 
     pub fn raw_args_mut(&mut self) -> &mut [RawArg] {
         &mut self.raw_args
+    }
+
+    pub fn finish(self) -> Result<Option<String>, Error> {
+        todo!()
     }
 
     pub(crate) fn range_mut(
