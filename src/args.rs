@@ -1,7 +1,10 @@
+use crate::log::Log;
+
 #[derive(Debug)]
 pub struct Args {
     metadata: Metadata,
     raw_args: Vec<RawArg>,
+    log: Log,
 }
 
 impl Args {
@@ -18,6 +21,7 @@ impl Args {
         Self {
             metadata: Metadata::default(),
             raw_args,
+            log: Log::default(),
         }
     }
 
