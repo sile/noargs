@@ -1,4 +1,5 @@
 use crate::{
+    arg::ArgSpec,
     args::{Args, Spec},
     flag::FlagSpec,
     formatter::Formatter,
@@ -24,7 +25,8 @@ impl<'a> HelpBuilder<'a> {
     pub fn build(mut self) -> String {
         self.build_description();
         self.build_usage();
-        // TODO: example, arguments, options, commands
+        self.build_example();
+        // TODO:  arguments, options, commands
         self.build_options();
         self.fmt.finish()
     }
@@ -39,18 +41,59 @@ impl<'a> HelpBuilder<'a> {
 
     fn build_usage(&mut self) {
         self.fmt.write(&format!(
-            "{} {}{}",
+            "{} {}",
             self.fmt.bold_underline("Usage:"),
             self.fmt.bold(self.args.metadata().app_name),
-            if self.has_options(false) {
-                " [OPTIONS]"
-            } else {
-                ""
-            }
         ));
 
-        // TODO: required options, and argments, [COMMAND]
+        // Required options.
+        for spec in &self.specs {
+            let Spec::Opt(spec) = spec else {
+                continue;
+            };
+            if spec.example.is_none() {
+                continue;
+            }
+            self.fmt.write(&format!(" --{} <{}>", spec.name, spec.ty));
+        }
 
+        // Other options.
+        if self.has_options(false) {
+            self.fmt.write(" [OPTIONS]");
+        }
+
+        // TODO: and argments, [COMMAND]
+
+        self.fmt.write("\n\n");
+    }
+
+    fn build_example(&mut self) {
+        if !self.has_examples() {
+            return;
+        }
+
+        self.fmt.write(&self.fmt.bold_underline("Example:\n"));
+        self.fmt
+            .write(&format!("  $ {}", self.args.metadata().app_name));
+        for spec in &self.specs {
+            match spec {
+                Spec::Arg(ArgSpec {
+                    name,
+                    example: Some(value),
+                    ..
+                }) => {
+                    self.fmt.write(&format!(" {} {}", name, value));
+                }
+                Spec::Opt(OptSpec {
+                    name,
+                    example: Some(value),
+                    ..
+                }) => {
+                    self.fmt.write(&format!(" --{} {}", name, value));
+                }
+                _ => {}
+            }
+        }
         self.fmt.write("\n\n");
     }
 
@@ -111,10 +154,18 @@ impl<'a> HelpBuilder<'a> {
     }
 
     fn has_options(&self, include_requried: bool) -> bool {
-        self.specs.iter().all(|spec| match spec {
+        self.specs.iter().any(|spec| match spec {
             Spec::Opt(spec) => include_requried || spec.example.is_none(),
             Spec::Flag(_) => true,
             Spec::Arg(_) | Spec::Subcommand(_) => false,
+        })
+    }
+
+    fn has_examples(&self) -> bool {
+        self.specs.iter().any(|spec| match spec {
+            Spec::Opt(spec) => spec.example.is_some(),
+            Spec::Arg(spec) => spec.example.is_some(),
+            _ => false,
         })
     }
 }
@@ -143,6 +194,73 @@ Options:
           Print help
       --version
           Print version
+"#
+        );
+    }
+
+    #[test]
+    fn flags_and_opts_help() {
+        let mut args = args(&["noargs"]);
+        args.metadata_mut().app_description = "";
+        FlagSpec::HELP.take(&mut args);
+        OptSpec {
+            name: "foo",
+            short: Some('f'),
+            ty: "INTEGER",
+            doc: "An integer\nThis is foo",
+            env: Some("FOO_ENV"),
+            default: Some("10"),
+            ..Default::default()
+        }
+        .take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: noargs [OPTIONS]
+
+Options:
+  -h, --help
+          Print help
+  -f, --foo <INTEGER>
+          An integer
+          This is foo
+          [env: FOO_ENV]
+          [default: 10]
+"#
+        );
+    }
+
+    #[test]
+    fn required_opts_help() {
+        let mut args = args(&["noargs"]);
+        args.metadata_mut().app_description = "";
+        FlagSpec::HELP.take(&mut args);
+        OptSpec {
+            name: "foo",
+            short: Some('f'),
+            ty: "INTEGER",
+            doc: "An integer",
+            example: Some("10"),
+            ..Default::default()
+        }
+        .take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: noargs --foo <INTEGER> [OPTIONS]
+
+Example:
+  $ noargs --foo 10
+
+Options:
+  -h, --help
+          Print help
+  -f, --foo <INTEGER>
+          An integer
 "#
         );
     }
