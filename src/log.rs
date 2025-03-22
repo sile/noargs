@@ -1,4 +1,4 @@
-use crate::{arg::ArgSpec, flag::FlagSpec, opt::OptSpec};
+use crate::{arg::ArgSpec, flag::FlagSpec, opt::OptSpec, subcommand::SubcommandSpec};
 
 #[derive(Debug, Default, Clone)]
 pub struct Log {
@@ -21,6 +21,10 @@ impl Log {
     pub fn record_flag(&mut self, spec: FlagSpec) {
         self.entries.push(LogEntry::Flag(spec));
     }
+
+    pub fn record_subcommand(&mut self, spec: SubcommandSpec) {
+        self.entries.push(LogEntry::Subcommand(spec));
+    }
 }
 
 // TODO: rename?
@@ -29,4 +33,5 @@ pub enum LogEntry {
     Arg(ArgSpec),
     Opt(OptSpec),
     Flag(FlagSpec),
+    Subcommand(SubcommandSpec),
 }
