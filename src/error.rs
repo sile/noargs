@@ -134,13 +134,13 @@ mod tests {
         assert!(Error::check_unexpected_arg(&args).is_ok());
 
         // Error without `--help`.
-        let args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
+        let mut args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
+        args.metadata_mut().help_flag_name = None;
         let e = Error::check_unexpected_arg(&args).expect_err("should error");
         assert_eq!(e.to_string(false), "unexpected argument '--foo' found");
 
         // Error with `--help`.
-        let mut args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
-        args.metadata_mut().help_flag_name = Some("help");
+        let args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
         let e = Error::check_unexpected_arg(&args).expect_err("should error");
         assert_eq!(
             e.to_string(false),

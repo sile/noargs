@@ -89,7 +89,7 @@ impl Metadata {
     pub const DEFAULT: Self = Self {
         app_name: env!("CARGO_PKG_NAME"),
         app_description: env!("CARGO_PKG_DESCRIPTION"),
-        help_flag_name: None,
+        help_flag_name: Some("help"),
         show_help: false,
     };
 }
