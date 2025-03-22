@@ -1,11 +1,12 @@
 pub mod arg;
 mod args;
-pub mod error;
+mod error;
 pub mod flag;
-pub mod formatter;
+mod formatter;
 pub mod help;
 pub mod log;
 pub mod opt;
 pub mod subcommand;
 
 pub use self::args::{Args, Metadata};
+pub use self::error::{Error, Result};

@@ -1,8 +1,9 @@
-use std::{borrow::Cow, io::IsTerminal};
+use std::io::IsTerminal;
 
 use crate::{
     arg::ArgSpec,
     args::{Args, Metadata},
+    formatter::Formatter,
     opt::Opt,
 };
 
@@ -47,7 +48,7 @@ impl Error {
         let mut fmt = Formatter::new(is_terminal);
         match self {
             Error::UnexpectedArg { metadata, arg } => {
-                fmt.format_unexpected_arg(*metadata, arg);
+                Self::format_unexpected_arg(&mut fmt, *metadata, arg);
             }
             #[expect(unused_variables)]
             Error::ParseArgError { arg, value, reason } => {
@@ -62,10 +63,24 @@ impl Error {
             #[expect(unused_variables)]
             Error::MissingOpt { opt } => todo!(),
             Error::Other(e) => {
-                fmt.text = e.to_string();
+                fmt.write(&e.to_string());
             }
         }
-        fmt.text
+        fmt.finish()
+    }
+
+    fn format_unexpected_arg(fmt: &mut Formatter, metadata: Metadata, arg: &str) {
+        fmt.write(&format!("unexpected argument '{}' found", fmt.bold(arg)));
+        Self::write_help_line(fmt, metadata);
+    }
+
+    fn write_help_line(fmt: &mut Formatter, metadata: Metadata) {
+        if let Some(help_flag_name) = metadata.help_flag_name {
+            fmt.write(&format!(
+                "\nTry '{}' for more information.",
+                fmt.bold(&format!("--{help_flag_name}"))
+            ));
+        }
     }
 }
 
@@ -78,48 +93,6 @@ impl<T: 'static + std::fmt::Display> From<T> for Error {
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_string(std::io::stderr().is_terminal()))
-    }
-}
-
-// TODO: factor out
-#[derive(Debug, Default)]
-struct Formatter {
-    text: String,
-    is_terminal: bool,
-}
-
-impl Formatter {
-    fn new(is_terminal: bool) -> Self {
-        Self {
-            text: String::new(),
-            is_terminal,
-        }
-    }
-
-    fn format_unexpected_arg(&mut self, metadata: Metadata, arg: &str) {
-        self.write(&format!("unexpected argument '{}' found", self.bold(arg)));
-        self.write_help_line(metadata);
-    }
-
-    fn write_help_line(&mut self, metadata: Metadata) {
-        if let Some(help_flag_name) = metadata.help_flag_name {
-            self.write(&format!(
-                "\nTry '{}' for more information.",
-                self.bold(&format!("--{help_flag_name}"))
-            ));
-        }
-    }
-
-    fn write(&mut self, s: &str) {
-        self.text.push_str(s);
-    }
-
-    fn bold<'a>(&self, s: &'a str) -> Cow<'a, str> {
-        if self.is_terminal {
-            Cow::Owned(format!("\x1b[1m{}\x1b[0m", s))
-        } else {
-            Cow::Borrowed(s)
-        }
     }
 }
 
