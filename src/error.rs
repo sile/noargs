@@ -3,6 +3,7 @@ use std::{borrow::Cow, io::IsTerminal};
 use crate::{
     arg::ArgSpec,
     args::{Args, Metadata},
+    opt::Opt,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -13,12 +14,19 @@ pub enum Error {
         arg: String,
     },
     ParseArgError {
-        arg: ArgSpec,
+        arg: ArgSpec, // TODO: Arg
         value: String,
         reason: String,
     },
-    MissingArgValue {
-        arg: ArgSpec,
+    MissingArg {
+        arg: ArgSpec, // TODO: Arg
+    },
+    ParseOptError {
+        opt: Opt,
+        reason: String,
+    },
+    MissingOpt {
+        opt: Opt,
     },
     Other(Box<dyn std::fmt::Display>),
 }
@@ -46,9 +54,13 @@ impl Error {
                 todo!()
             }
             #[expect(unused_variables)]
-            Error::MissingArgValue { arg } => {
+            Error::MissingArg { arg } => {
                 todo!()
             }
+            #[expect(unused_variables)]
+            Error::ParseOptError { opt, reason } => todo!(),
+            #[expect(unused_variables)]
+            Error::MissingOpt { opt } => todo!(),
             Error::Other(e) => {
                 fmt.text = e.to_string();
             }

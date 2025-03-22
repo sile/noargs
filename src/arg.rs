@@ -83,7 +83,7 @@ impl Arg {
     {
         let value = self
             .value()
-            .ok_or_else(|| Error::MissingArgValue { arg: self.spec() })?;
+            .ok_or_else(|| Error::MissingArg { arg: self.spec() })?;
         value.parse::<T>().map_err(|e| Error::ParseArgError {
             arg: self.spec(),
             value: value.to_owned(),

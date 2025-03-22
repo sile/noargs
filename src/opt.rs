@@ -1,4 +1,9 @@
-use crate::args::{Args, Metadata};
+use std::str::FromStr;
+
+use crate::{
+    args::{Args, Metadata},
+    error::Error,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OptSpec {
@@ -150,4 +155,63 @@ pub enum Opt {
     None {
         spec: OptSpec,
     },
+}
+
+impl Opt {
+    pub fn parse<T>(&self) -> Result<T, Error>
+    where
+        T: FromStr,
+        T::Err: std::fmt::Display,
+    {
+        let value = self
+            .value()
+            .ok_or_else(|| Error::MissingOpt { opt: self.clone() })?;
+        value.parse::<T>().map_err(|e| Error::ParseOptError {
+            opt: self.clone(),
+            reason: e.to_string(),
+        })
+    }
+
+    pub fn parse_if_present<T>(&self) -> Result<Option<T>, Error>
+    where
+        T: FromStr,
+        T::Err: std::fmt::Display,
+    {
+        self.is_present().then(|| self.parse()).transpose()
+    }
+
+    pub fn spec(&self) -> OptSpec {
+        match self {
+            Opt::Long { spec, .. }
+            | Opt::Short { spec, .. }
+            | Opt::Env { spec, .. }
+            | Opt::Default { spec }
+            | Opt::Example { spec }
+            | Opt::None { spec } => *spec,
+        }
+    }
+
+    pub fn is_present(&self) -> bool {
+        !matches!(self, Opt::None { .. })
+    }
+
+    pub fn value(&self) -> Option<&str> {
+        match self {
+            Opt::Long { value, .. } | Opt::Short { value, .. } => {
+                value.as_ref().map(|v| v.as_str())
+            }
+            Opt::Env { value, .. } => Some(value),
+            Opt::Default { spec } => spec.default,
+            Opt::Example { spec } => spec.example,
+            Opt::None { .. } => None,
+        }
+    }
+
+    pub fn index(&self) -> Option<usize> {
+        if let Opt::Long { index, .. } | Opt::Short { index, .. } = self {
+            Some(*index)
+        } else {
+            None
+        }
+    }
 }
