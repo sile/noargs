@@ -6,8 +6,8 @@ pub struct FlagSpec {
     pub short: char,
     pub doc: &'static str,
     pub env: &'static str,
-    pub before: Option<usize>,
-    pub after: Option<usize>,
+    pub min_index: Option<usize>,
+    pub max_index: Option<usize>,
 }
 
 impl FlagSpec {
@@ -16,8 +16,8 @@ impl FlagSpec {
         short: '\0',
         doc: "",
         env: "",
-        before: None,
-        after: None,
+        min_index: None,
+        max_index: None,
     };
 
     pub const HELP: Self = Self {
@@ -42,7 +42,13 @@ impl FlagSpec {
     pub fn take(self, args: &mut Args) -> Flag {
         args.log_mut().record_flag(self);
 
-        for (index, raw_arg) in args.raw_args_mut().iter_mut().enumerate() {
+        for (index, raw_arg) in args
+            .raw_args_mut()
+            .iter_mut()
+            .enumerate()
+            .take(self.max_index.map(|i| i + 1).unwrap_or(usize::MAX))
+            .skip(self.min_index.unwrap_or(0))
+        {
             let Some(value) = &mut raw_arg.value else {
                 continue;
             };
@@ -156,6 +162,21 @@ mod tests {
         std::env::set_var("TEST_ENV_FLAG_FOO", "1");
         assert!(matches!(flag.take(&mut args), Flag::Env { .. }));
         assert!(matches!(flag.take(&mut args), Flag::Env { .. }));
+    }
+
+    #[test]
+    fn flag_range() {
+        let mut args = args(&["test", "--foo", "--foo", "--foo"]);
+
+        let mut flag = flag("foo");
+        flag.min_index = Some(2);
+        flag.max_index = Some(2);
+        assert!(matches!(flag.take(&mut args), Flag::Long { index: 2, .. }));
+        assert!(matches!(flag.take(&mut args), Flag::None { .. }));
+
+        flag.max_index = None;
+        assert!(matches!(flag.take(&mut args), Flag::Long { index: 3, .. }));
+        assert!(matches!(flag.take(&mut args), Flag::None { .. }));
     }
 
     fn args(raw_args: &[&str]) -> Args {
