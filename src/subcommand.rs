@@ -72,3 +72,39 @@ impl Subcommand {
         matches!(self, Self::Some { .. })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::flag::{Flag, FlagSpec};
+
+    use super::*;
+
+    #[test]
+    fn subcommand_and_flag() {
+        let mut args = args(&["test", "--foo", "run", "--foo"]);
+        if let Some(_cmd) = subcommand("bar").take(&mut args).ok() {
+            panic!();
+        } else if let Some(cmd) = subcommand("run").take(&mut args).ok() {
+            let flag = FlagSpec {
+                name: "foo",
+                min_index: cmd.index(),
+                ..Default::default()
+            };
+            assert!(matches!(flag.take(&mut args), Flag::Long { index: 3, .. }));
+            assert!(matches!(flag.take(&mut args), Flag::None { .. }));
+        } else {
+            panic!()
+        }
+    }
+
+    fn args(raw_args: &[&str]) -> Args {
+        Args::new(raw_args.iter().map(|a| a.to_string()))
+    }
+
+    fn subcommand(name: &'static str) -> SubcommandSpec {
+        SubcommandSpec {
+            name,
+            ..Default::default()
+        }
+    }
+}
