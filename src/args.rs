@@ -33,16 +33,19 @@ impl Args {
         &mut self.metadata
     }
 
-    pub fn raw_args(&self) -> &[RawArg] {
-        &self.raw_args
-    }
-
-    pub fn raw_args_mut(&mut self) -> &mut [RawArg] {
-        &mut self.raw_args
+    pub fn remaining_args(&self) -> impl '_ + Iterator<Item = (usize, &str)> {
+        self.raw_args
+            .iter()
+            .enumerate()
+            .filter_map(|(i, a)| a.value.as_ref().map(|v| (i, v.as_str())))
     }
 
     pub fn finish(self) -> Result<Option<String>, Error> {
         todo!()
+    }
+
+    pub(crate) fn raw_args_mut(&mut self) -> &mut [RawArg] {
+        &mut self.raw_args
     }
 
     pub(crate) fn range_mut(
@@ -92,6 +95,10 @@ impl Metadata {
         help_flag_name: Some("help"),
         show_help: false,
     };
+
+    pub fn version_line(self) -> String {
+        format!("{} {}", self.app_name, env!("CARGO_PKG_VERSION"))
+    }
 }
 
 impl Default for Metadata {
