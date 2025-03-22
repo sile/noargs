@@ -6,8 +6,8 @@ pub struct ArgSpec {
     pub default: Option<&'static str>,
     pub example: Option<&'static str>,
     pub doc: &'static str,
-    pub before: Option<usize>,
-    pub after: Option<usize>,
+    pub min_index: Option<usize>,
+    pub max_index: Option<usize>,
 }
 
 impl ArgSpec {

@@ -42,13 +42,7 @@ impl FlagSpec {
     pub fn take(self, args: &mut Args) -> Flag {
         args.log_mut().record_flag(self);
 
-        for (index, raw_arg) in args
-            .raw_args_mut()
-            .iter_mut()
-            .enumerate()
-            .take(self.max_index.map(|i| i + 1).unwrap_or(usize::MAX))
-            .skip(self.min_index.unwrap_or(0))
-        {
+        for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
             let Some(value) = &mut raw_arg.value else {
                 continue;
             };
