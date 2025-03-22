@@ -188,6 +188,13 @@ impl Opt {
         self.is_present().then(|| self.parse()).transpose()
     }
 
+    pub fn parse_with<F, T>(&self, f: F) -> Result<T, Error>
+    where
+        F: FnOnce(&Self) -> Result<T, Error>,
+    {
+        f(self)
+    }
+
     pub fn spec(&self) -> OptSpec {
         match self {
             Opt::Long { spec, .. }

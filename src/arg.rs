@@ -99,6 +99,13 @@ impl Arg {
         self.is_present().then(|| self.parse()).transpose()
     }
 
+    pub fn parse_with<F, T>(&self, f: F) -> Result<T, Error>
+    where
+        F: FnOnce(&Self) -> Result<T, Error>,
+    {
+        f(self)
+    }
+
     pub fn spec(&self) -> ArgSpec {
         match self {
             Arg::Positional { spec, .. }
