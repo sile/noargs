@@ -1,4 +1,4 @@
-use crate::log::Log;
+use crate::{flag::FlagSpec, log::Log};
 
 #[derive(Debug)]
 pub struct Args {
@@ -61,7 +61,7 @@ pub struct RawArg {
 pub struct Metadata {
     pub app_name: &'static str,
     pub app_description: &'static str,
-    pub help_option_name: Option<&'static str>, // TODO: OptSpec
+    pub help_flag: Option<FlagSpec>,
 }
 
 impl Default for Metadata {
@@ -69,7 +69,7 @@ impl Default for Metadata {
         Self {
             app_name: env!("CARGO_PKG_NAME"),
             app_description: env!("CARGO_PKG_DESCRIPTION"),
-            help_option_name: None,
+            help_flag: None,
         }
     }
 }

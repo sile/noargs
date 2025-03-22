@@ -64,10 +64,10 @@ impl Formatter {
     fn format_unexpected_arg(&mut self, metadata: Metadata, arg: &str) {
         self.write(&format!("unexpected argument '{}' found", self.bold(arg)));
 
-        if let Some(help) = metadata.help_option_name {
+        if let Some(help) = metadata.help_flag {
             self.write(&format!(
                 "\nTry '{}' for more information.",
-                self.bold(&format!("--{}", help))
+                self.bold(&format!("--{}", help.long))
             ));
         }
     }
@@ -87,6 +87,8 @@ impl Formatter {
 
 #[cfg(test)]
 mod tests {
+    use crate::flag::FlagSpec;
+
     use super::*;
 
     #[test]
@@ -102,7 +104,7 @@ mod tests {
 
         // Error with `--help`.
         let mut args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
-        args.metadata_mut().help_option_name = Some("help");
+        args.metadata_mut().help_flag = Some(FlagSpec::HELP);
         let e = Error::check_unexpected_arg(&args).expect_err("should error");
         assert_eq!(
             e.to_string(false),
