@@ -81,6 +81,7 @@ impl std::fmt::Debug for Error {
     }
 }
 
+// TODO: factor out
 #[derive(Debug, Default)]
 struct Formatter {
     text: String,

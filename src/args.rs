@@ -57,6 +57,10 @@ impl Args {
         &mut self.log
     }
 
+    pub(crate) fn log(&self) -> &Log {
+        &self.log
+    }
+
     pub(crate) fn next_raw_arg_value(&self) -> Option<&str> {
         self.raw_args
             .iter()
@@ -74,6 +78,7 @@ pub struct Metadata {
     pub app_name: &'static str,
     pub app_description: &'static str,
     pub help_flag_name: Option<&'static str>,
+    pub show_help: bool,
 }
 
 impl Metadata {
@@ -81,6 +86,7 @@ impl Metadata {
         app_name: env!("CARGO_PKG_NAME"),
         app_description: env!("CARGO_PKG_DESCRIPTION"),
         help_flag_name: None,
+        show_help: false,
     };
 }
 
