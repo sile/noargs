@@ -36,7 +36,7 @@ impl ArgSpec {
                 return Arg::Positional {
                     spec: self,
                     index,
-                    value,
+                    raw_value: value,
                 };
             };
         }
@@ -62,7 +62,7 @@ pub enum Arg {
     Positional {
         spec: ArgSpec,
         index: usize,
-        value: String,
+        raw_value: String,
     },
     Default {
         spec: ArgSpec,
@@ -82,7 +82,7 @@ impl Arg {
         T::Err: std::fmt::Display,
     {
         let value = self
-            .value()
+            .raw_value()
             .ok_or_else(|| Error::MissingArg { arg: self.spec() })?;
         value.parse::<T>().map_err(|e| Error::ParseArgError {
             arg: self.spec(),
@@ -112,9 +112,9 @@ impl Arg {
         !matches!(self, Self::None { .. })
     }
 
-    pub fn value(&self) -> Option<&str> {
+    pub fn raw_value(&self) -> Option<&str> {
         match self {
-            Arg::Positional { value, .. } => Some(value.as_str()),
+            Arg::Positional { raw_value, .. } => Some(raw_value.as_str()),
             Arg::Default { spec } => spec.default,
             Arg::Example { spec } => spec.example,
             Arg::None { .. } => None,

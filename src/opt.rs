@@ -41,9 +41,12 @@ impl OptSpec {
         for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
             if let Some(mut pending) = pending.take() {
                 match &mut pending {
-                    Opt::Long { value, .. } | Opt::Short { value, .. } => {
-                        *value = raw_arg.value.take()
+                    Opt::Long {
+                        raw_value: value, ..
                     }
+                    | Opt::Short {
+                        raw_value: value, ..
+                    } => *value = raw_arg.value.take(),
                     _ => unreachable!(),
                 }
                 return pending;
@@ -67,7 +70,7 @@ impl OptSpec {
                         pending = Some(Opt::Long {
                             spec: self,
                             index,
-                            value: None,
+                            raw_value: None,
                         });
                     }
                     Some('=') => {
@@ -76,7 +79,7 @@ impl OptSpec {
                         return Opt::Long {
                             spec: self,
                             index,
-                            value: Some(opt_value),
+                            raw_value: Some(opt_value),
                         };
                     }
                     Some(_) => {}
@@ -93,7 +96,7 @@ impl OptSpec {
                     pending = Some(Opt::Short {
                         spec: self,
                         index,
-                        value: None,
+                        raw_value: None,
                     });
                 }
                 Some('=') => {
@@ -103,7 +106,7 @@ impl OptSpec {
                     return Opt::Short {
                         spec: self,
                         index,
-                        value: Some(opt_value),
+                        raw_value: Some(opt_value),
                     };
                 }
                 Some(_) => {}
@@ -115,7 +118,10 @@ impl OptSpec {
             .and_then(|name| std::env::var(name).ok())
             .filter(|v| !v.is_empty())
         {
-            Opt::Env { spec: self, value }
+            Opt::Env {
+                spec: self,
+                raw_value: value,
+            }
         } else if self.default.is_some() {
             Opt::Default { spec: self }
         } else if self.example.is_some() && args.metadata().show_help {
@@ -137,16 +143,16 @@ pub enum Opt {
     Long {
         spec: OptSpec,
         index: usize,
-        value: Option<String>,
+        raw_value: Option<String>,
     },
     Short {
         spec: OptSpec,
         index: usize,
-        value: Option<String>,
+        raw_value: Option<String>,
     },
     Env {
         spec: OptSpec,
-        value: String,
+        raw_value: String,
     },
     Default {
         spec: OptSpec,
@@ -166,7 +172,7 @@ impl Opt {
         T::Err: std::fmt::Display,
     {
         let value = self
-            .value()
+            .raw_value()
             .ok_or_else(|| Error::MissingOpt { opt: self.clone() })?;
         value.parse::<T>().map_err(|e| Error::ParseOptError {
             opt: self.clone(),
@@ -197,12 +203,12 @@ impl Opt {
         !matches!(self, Opt::None { .. })
     }
 
-    pub fn value(&self) -> Option<&str> {
+    pub fn raw_value(&self) -> Option<&str> {
         match self {
-            Opt::Long { value, .. } | Opt::Short { value, .. } => {
-                value.as_ref().map(|v| v.as_str())
+            Opt::Long { raw_value, .. } | Opt::Short { raw_value, .. } => {
+                raw_value.as_ref().map(|v| v.as_str())
             }
-            Opt::Env { value, .. } => Some(value),
+            Opt::Env { raw_value, .. } => Some(raw_value),
             Opt::Default { spec } => spec.default,
             Opt::Example { spec } => spec.example,
             Opt::None { .. } => None,
