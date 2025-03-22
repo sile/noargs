@@ -43,7 +43,7 @@ impl FlagSpec {
 
     pub fn take(mut self, args: &mut Args) -> Flag {
         self.metadata = args.metadata();
-        args.log_mut().record_flag(self);
+        args.record_flag(self);
 
         for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
             let Some(value) = &mut raw_arg.value else {

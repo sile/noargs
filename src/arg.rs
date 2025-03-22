@@ -29,7 +29,7 @@ impl ArgSpec {
 
     pub fn take(mut self, args: &mut Args) -> Arg {
         self.metadata = args.metadata();
-        args.log_mut().record_arg(self);
+        args.record_arg(self);
 
         for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
             if let Some(value) = raw_arg.value.take() {

@@ -1,10 +1,10 @@
-use crate::{error::Error, log::Log};
+use crate::{arg::ArgSpec, error::Error, flag::FlagSpec, opt::OptSpec, subcommand::SubcommandSpec};
 
 #[derive(Debug)]
 pub struct Args {
     metadata: Metadata,
     raw_args: Vec<RawArg>,
-    log: Log,
+    log: Vec<Spec>,
 }
 
 impl Args {
@@ -21,8 +21,12 @@ impl Args {
         Self {
             metadata: Metadata::default(),
             raw_args,
-            log: Log::default(),
+            log: Vec::new(),
         }
+    }
+
+    pub fn with_env_args() -> Self {
+        Self::new(std::env::args())
     }
 
     pub fn metadata(&self) -> Metadata {
@@ -60,12 +64,24 @@ impl Args {
             .skip(min_index.unwrap_or(0))
     }
 
-    pub(crate) fn log_mut(&mut self) -> &mut Log {
-        &mut self.log
+    pub(crate) fn log(&self) -> &[Spec] {
+        &self.log
     }
 
-    pub(crate) fn log(&self) -> &Log {
-        &self.log
+    pub(crate) fn record_arg(&mut self, spec: ArgSpec) {
+        self.log.push(Spec::Arg(spec));
+    }
+
+    pub(crate) fn record_opt(&mut self, spec: OptSpec) {
+        self.log.push(Spec::Opt(spec));
+    }
+
+    pub(crate) fn record_flag(&mut self, spec: FlagSpec) {
+        self.log.push(Spec::Flag(spec));
+    }
+
+    pub(crate) fn record_subcommand(&mut self, spec: SubcommandSpec) {
+        self.log.push(Spec::Subcommand(spec));
     }
 
     pub(crate) fn next_raw_arg_value(&self) -> Option<&str> {
@@ -105,4 +121,12 @@ impl Default for Metadata {
     fn default() -> Self {
         Self::DEFAULT
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Spec {
+    Arg(ArgSpec),
+    Opt(OptSpec),
+    Flag(FlagSpec),
+    Subcommand(SubcommandSpec),
 }

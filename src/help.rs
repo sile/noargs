@@ -1,4 +1,9 @@
-use crate::{args::Args, flag::FlagSpec, formatter::Formatter, log::Spec, opt::OptSpec};
+use crate::{
+    args::{Args, Spec},
+    flag::FlagSpec,
+    formatter::Formatter,
+    opt::OptSpec,
+};
 
 #[derive(Debug)]
 pub struct HelpBuilder<'a> {
@@ -11,7 +16,7 @@ impl<'a> HelpBuilder<'a> {
     pub fn new(args: &'a Args, is_terminal: bool) -> Self {
         Self {
             args,
-            specs: args.log().entries.clone(), // TODO: filter
+            specs: args.log().to_vec(), // TODO: filter
             fmt: Formatter::new(is_terminal),
         }
     }

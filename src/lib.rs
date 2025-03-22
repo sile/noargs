@@ -4,7 +4,6 @@ mod error;
 pub mod flag;
 mod formatter;
 pub mod help;
-pub mod log;
 pub mod opt;
 pub mod subcommand;
 

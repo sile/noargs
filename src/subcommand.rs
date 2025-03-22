@@ -20,7 +20,7 @@ impl SubcommandSpec {
 
     pub fn take(mut self, args: &mut Args) -> Subcommand {
         self.metadata = args.metadata();
-        args.log_mut().record_subcommand(self);
+        args.record_subcommand(self);
 
         for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
             let Some(value) = &raw_arg.value else {
