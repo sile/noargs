@@ -1,5 +1,3 @@
-use std::io::IsTerminal;
-
 use crate::{args::Args, flag::FlagSpec, formatter::Formatter, log::Spec, opt::OptSpec};
 
 #[derive(Debug)]
@@ -10,11 +8,11 @@ pub struct HelpBuilder<'a> {
 }
 
 impl<'a> HelpBuilder<'a> {
-    pub fn new(args: &'a Args) -> Self {
+    pub fn new(args: &'a Args, is_terminal: bool) -> Self {
         Self {
             args,
             specs: args.log().entries.clone(), // TODO: filter
-            fmt: Formatter::new(std::io::stdout().is_terminal()),
+            fmt: Formatter::new(is_terminal),
         }
     }
 
@@ -71,16 +69,40 @@ impl<'a> HelpBuilder<'a> {
             }
             last = Some(spec);
         }
-        self.fmt.write("\n");
     }
 
     fn build_opt(&mut self, spec: OptSpec) {
-        // TODO
-        self.fmt.write("\n");
+        let names = if let Some(short) = spec.short {
+            format!("-{short}, --{}", spec.name)
+        } else {
+            format!("          --{}", spec.name)
+        };
+        self.fmt
+            .write(&format!("  {} <{}>\n", self.fmt.bold(&names), spec.ty));
+        for line in spec.doc.lines() {
+            self.fmt.write(&format!("          {line}\n"));
+        }
+        if let Some(env) = spec.env {
+            self.fmt.write(&format!("          [env: {env}]\n"));
+        }
+        if let Some(default) = spec.default {
+            self.fmt.write(&format!("          [default: {default}]\n"));
+        }
     }
 
     fn build_flag(&mut self, spec: FlagSpec) {
-        // TODO
+        let names = if let Some(short) = spec.short {
+            format!("-{}, --{}", short, spec.name)
+        } else {
+            format!("    --{}", spec.name)
+        };
+        self.fmt.write(&format!("  {}\n", self.fmt.bold(&names)));
+        for line in spec.doc.lines() {
+            self.fmt.write(&format!("          {line}\n"));
+        }
+        if let Some(env) = spec.env {
+            self.fmt.write(&format!("          [env: {env}]\n"));
+        }
     }
 
     fn has_options(&self, include_requried: bool) -> bool {
@@ -89,5 +111,38 @@ impl<'a> HelpBuilder<'a> {
             Spec::Flag(_) => true,
             Spec::Arg(_) | Spec::Subcommand(_) => false,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flags_help() {
+        let mut args = args(&["noargs"]);
+        args.metadata_mut().app_description = "Test command";
+        FlagSpec::HELP.take(&mut args);
+        FlagSpec::VERSION.take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Test command
+
+Usage: noargs [OPTIONS]
+
+Options:
+  -h, --help
+          Print help
+      --version
+          Print version
+"#
+        );
+    }
+
+    fn args(raw_args: &[&str]) -> Args {
+        Args::new(raw_args.iter().map(|a| a.to_string()))
     }
 }
