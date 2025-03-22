@@ -41,9 +41,11 @@ impl Error {
             Error::UnexpectedArg { metadata, arg } => {
                 fmt.format_unexpected_arg(*metadata, arg);
             }
+            #[expect(unused_variables)]
             Error::ParseArgError { arg, value, reason } => {
                 todo!()
             }
+            #[expect(unused_variables)]
             Error::MissingArgValue { arg } => {
                 todo!()
             }
@@ -83,7 +85,10 @@ impl Formatter {
 
     fn format_unexpected_arg(&mut self, metadata: Metadata, arg: &str) {
         self.write(&format!("unexpected argument '{}' found", self.bold(arg)));
+        self.write_help_line(metadata);
+    }
 
+    fn write_help_line(&mut self, metadata: Metadata) {
         if let Some(help_flag_name) = metadata.help_flag_name {
             self.write(&format!(
                 "\nTry '{}' for more information.",

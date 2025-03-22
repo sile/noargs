@@ -129,3 +129,69 @@ impl Arg {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn required_arg() {
+        let mut args = args(&["test", "foo", "bar"]);
+        let arg = arg("ARG");
+        assert!(matches!(
+            arg.take(&mut args),
+            Arg::Positional { index: 1, .. }
+        ));
+        assert!(matches!(
+            arg.take(&mut args),
+            Arg::Positional { index: 2, .. }
+        ));
+        assert!(matches!(arg.take(&mut args), Arg::None { .. }));
+    }
+
+    #[test]
+    fn optional_arg() {
+        let mut args = args(&["test", "foo"]);
+        let mut arg = arg("ARG");
+        arg.default = Some("bar");
+        assert!(matches!(
+            arg.take(&mut args),
+            Arg::Positional { index: 1, .. }
+        ));
+        assert!(matches!(arg.take(&mut args), Arg::Default { .. }));
+        assert!(matches!(arg.take(&mut args), Arg::Default { .. }));
+    }
+
+    #[test]
+    fn example_arg() {
+        let mut args = args(&["test", "foo"]);
+        let mut arg = arg("ARG");
+        arg.example = Some("bar");
+        assert!(matches!(
+            arg.take(&mut args),
+            Arg::Positional { index: 1, .. }
+        ));
+        assert!(matches!(arg.take(&mut args), Arg::Example { .. }));
+        assert!(matches!(arg.take(&mut args), Arg::Example { .. }));
+    }
+
+    #[test]
+    fn parse_arg() {
+        let mut args = args(&["test", "1", "not a number"]);
+        let arg = arg("ARG");
+        assert_eq!(arg.take(&mut args).parse::<usize>().ok(), Some(1));
+        assert_eq!(arg.take(&mut args).parse::<usize>().ok(), None);
+        assert_eq!(arg.take(&mut args).parse::<usize>().ok(), None);
+    }
+
+    fn args(raw_args: &[&str]) -> Args {
+        Args::new(raw_args.iter().map(|a| a.to_string()))
+    }
+
+    fn arg(name: &'static str) -> ArgSpec {
+        ArgSpec {
+            name,
+            ..Default::default()
+        }
+    }
+}

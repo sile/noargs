@@ -3,9 +3,9 @@ use crate::args::{Args, Metadata};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FlagSpec {
     pub name: &'static str,
-    pub short: char,
+    pub short: char, // TODO: Option
     pub doc: &'static str,
-    pub env: &'static str,
+    pub env: &'static str, // TODO: Option
     pub min_index: Option<usize>,
     pub max_index: Option<usize>,
     pub metadata: Metadata,
