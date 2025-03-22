@@ -63,6 +63,7 @@ impl OptSpec {
                 }
                 match value[2 + self.name.len()..].chars().next() {
                     None => {
+                        raw_arg.value = None;
                         pending = Some(Opt::Long {
                             spec: self,
                             index,
@@ -88,6 +89,7 @@ impl OptSpec {
             // Short name option.
             match value[1..].chars().nth(1) {
                 None => {
+                    raw_arg.value = None;
                     pending = Some(Opt::Short {
                         spec: self,
                         index,
@@ -212,6 +214,62 @@ impl Opt {
             Some(*index)
         } else {
             None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn required_opt() {
+        let mut args = args(&["test", "--foo", "bar", "-f=baz"]);
+        let mut opt = opt("foo");
+        opt.short = Some('f');
+        assert!(matches!(opt.take(&mut args), Opt::Long { index: 1, .. }));
+        assert!(matches!(opt.take(&mut args), Opt::Short { index: 3, .. }));
+        assert!(matches!(opt.take(&mut args), Opt::None { .. }));
+    }
+
+    #[test]
+    fn default_opt() {
+        let mut args = args(&["test", "--foo=1", "--bar=2"]);
+        let mut opt = opt("bar");
+        opt.default = Some("3");
+        assert!(matches!(opt.take(&mut args), Opt::Long { index: 2, .. }));
+        assert!(matches!(opt.take(&mut args), Opt::Default { .. }));
+        assert!(matches!(opt.take(&mut args), Opt::Default { .. }));
+    }
+
+    #[test]
+    fn exampel_opt() {
+        let mut args = args(&["test", "--foo=1", "--bar=2"]);
+        let mut opt = opt("bar");
+        opt.example = Some("3");
+        assert!(matches!(opt.take(&mut args), Opt::Long { index: 2, .. }));
+        assert!(matches!(opt.take(&mut args), Opt::Example { .. }));
+        assert!(matches!(opt.take(&mut args), Opt::Example { .. }));
+    }
+
+    #[test]
+    fn parse_opt() {
+        let mut args = args(&["test", "--foo=1", "-f", "2", "--foo"]);
+        let mut opt = opt("foo");
+        opt.short = Some('f');
+        assert_eq!(opt.take(&mut args).parse::<usize>().ok(), Some(1));
+        assert_eq!(opt.take(&mut args).parse::<usize>().ok(), Some(2));
+        assert_eq!(opt.take(&mut args).parse::<usize>().ok(), None);
+    }
+
+    fn args(raw_args: &[&str]) -> Args {
+        Args::new(raw_args.iter().map(|a| a.to_string()))
+    }
+
+    fn opt(name: &'static str) -> OptSpec {
+        OptSpec {
+            name,
+            ..Default::default()
         }
     }
 }
