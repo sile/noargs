@@ -121,10 +121,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn long_flag() {
+    fn long_name_flag() {
         let mut args = args(&["test", "--foo"]);
-        assert!(flag("foo").take(&mut args).is_present());
-        assert!(!flag("foo").take(&mut args).is_present());
+        let flag = flag("foo");
+        assert!(matches!(flag.take(&mut args), Flag::Long { index: 1, .. }));
+        assert!(matches!(flag.take(&mut args), Flag::None { .. }));
+    }
+
+    #[test]
+    fn short_name_flag() {
+        let mut args = args(&["test", "-f", "-bf"]);
+
+        let flag = short_flag('f');
+        assert!(matches!(flag.take(&mut args), Flag::Short { index: 1, .. }));
+        assert!(matches!(flag.take(&mut args), Flag::Short { index: 2, .. }));
+        assert!(matches!(flag.take(&mut args), Flag::None { .. }));
+
+        let flag = short_flag('b');
+        assert!(matches!(flag.take(&mut args), Flag::Short { index: 2, .. }));
+        assert!(matches!(flag.take(&mut args), Flag::None { .. }));
     }
 
     fn args(raw_args: &[&str]) -> Args {
@@ -134,6 +149,14 @@ mod tests {
     fn flag(long_name: &'static str) -> FlagSpec {
         FlagSpec {
             long: long_name,
+            ..Default::default()
+        }
+    }
+
+    fn short_flag(short_name: char) -> FlagSpec {
+        FlagSpec {
+            long: "dummy",
+            short: short_name,
             ..Default::default()
         }
     }
