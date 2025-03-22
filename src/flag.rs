@@ -152,7 +152,9 @@ mod tests {
         };
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
 
-        std::env::set_var("TEST_ENV_FLAG_FOO", "1");
+        unsafe {
+            std::env::set_var("TEST_ENV_FLAG_FOO", "1");
+        }
         assert!(matches!(flag.take(&mut args), Flag::Env { .. }));
         assert!(matches!(flag.take(&mut args), Flag::Env { .. }));
     }
