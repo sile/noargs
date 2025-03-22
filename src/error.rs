@@ -67,7 +67,7 @@ impl Formatter {
         if let Some(help) = metadata.help_flag {
             self.write(&format!(
                 "\nTry '{}' for more information.",
-                self.bold(&format!("--{}", help.long))
+                self.bold(&format!("--{}", help.name))
             ));
         }
     }

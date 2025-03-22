@@ -2,7 +2,7 @@ use crate::args::Args;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FlagSpec {
-    pub long: &'static str,
+    pub name: &'static str,
     pub short: char,
     pub doc: &'static str,
     pub env: &'static str,
@@ -12,7 +12,7 @@ pub struct FlagSpec {
 
 impl FlagSpec {
     pub const DEFAULT: Self = Self {
-        long: "",
+        name: "",
         short: '\0',
         doc: "",
         env: "",
@@ -21,20 +21,20 @@ impl FlagSpec {
     };
 
     pub const HELP: Self = Self {
-        long: "help",
+        name: "help",
         short: 'h',
         doc: "Print help",
         ..Self::DEFAULT
     };
 
     pub const VERSION: Self = Self {
-        long: "version",
+        name: "version",
         doc: "Print version",
         ..Self::DEFAULT
     };
 
     pub const OPTIONS_END: Self = Self {
-        long: "",
+        name: "",
         doc: "Indicates that all arguments following this flag are positional",
         ..Self::DEFAULT
     };
@@ -51,7 +51,7 @@ impl FlagSpec {
             }
 
             if value.starts_with("--") {
-                if &value[2..] == self.long {
+                if &value[2..] == self.name {
                     raw_arg.value = None;
                     return Flag::Long { spec: self, index };
                 }
@@ -84,8 +84,8 @@ impl Default for FlagSpec {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Flag {
-    Short { spec: FlagSpec, index: usize },
     Long { spec: FlagSpec, index: usize },
+    Short { spec: FlagSpec, index: usize },
     Env { spec: FlagSpec },
     None { spec: FlagSpec },
 }
@@ -147,7 +147,7 @@ mod tests {
         let mut args = args(&["test", "--bar"]);
 
         let flag = FlagSpec {
-            long: "foo",
+            name: "foo",
             env: "TEST_ENV_FLAG_FOO",
             ..Default::default()
         };
@@ -164,14 +164,14 @@ mod tests {
 
     fn flag(long_name: &'static str) -> FlagSpec {
         FlagSpec {
-            long: long_name,
+            name: long_name,
             ..Default::default()
         }
     }
 
     fn short_flag(short_name: char) -> FlagSpec {
         FlagSpec {
-            long: "dummy",
+            name: "dummy",
             short: short_name,
             ..Default::default()
         }
