@@ -68,7 +68,7 @@ impl FlagSpec {
             }
         }
 
-        if std::env::var(self.env).is_ok_and(|v| !v.is_empty()) {
+        if !self.env.is_empty() && std::env::var(self.env).is_ok_and(|v| !v.is_empty()) {
             Flag::Env { spec: self }
         } else {
             Flag::None { spec: self }
@@ -140,6 +140,22 @@ mod tests {
         let flag = short_flag('b');
         assert!(matches!(flag.take(&mut args), Flag::Short { index: 2, .. }));
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
+    }
+
+    #[test]
+    fn env_flag() {
+        let mut args = args(&["test", "--bar"]);
+
+        let flag = FlagSpec {
+            long: "foo",
+            env: "TEST_ENV_FLAG_FOO",
+            ..Default::default()
+        };
+        assert!(matches!(flag.take(&mut args), Flag::None { .. }));
+
+        std::env::set_var("TEST_ENV_FLAG_FOO", "1");
+        assert!(matches!(flag.take(&mut args), Flag::Env { .. }));
+        assert!(matches!(flag.take(&mut args), Flag::Env { .. }));
     }
 
     fn args(raw_args: &[&str]) -> Args {
