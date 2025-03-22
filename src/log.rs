@@ -1,4 +1,4 @@
-use crate::{arg::ArgSpec, flag::FlagSpec};
+use crate::{arg::ArgSpec, flag::FlagSpec, opt::OptSpec};
 
 #[derive(Debug, Default, Clone)]
 pub struct Log {
@@ -14,6 +14,10 @@ impl Log {
         self.entries.push(LogEntry::Arg(spec));
     }
 
+    pub fn record_opt(&mut self, spec: OptSpec) {
+        self.entries.push(LogEntry::Opt(spec));
+    }
+
     pub fn record_flag(&mut self, spec: FlagSpec) {
         self.entries.push(LogEntry::Flag(spec));
     }
@@ -23,5 +27,6 @@ impl Log {
 #[derive(Debug, Clone, Copy)]
 pub enum LogEntry {
     Arg(ArgSpec),
+    Opt(OptSpec),
     Flag(FlagSpec),
 }
