@@ -5,28 +5,83 @@ use crate::{
     error::Error,
 };
 
+/// Specification for [`Arg`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ArgSpec {
+    /// Value name (usually SCREAMING_SNAKE_CASE).
     pub name: &'static str,
-    pub default: Option<&'static str>,
-    pub example: Option<&'static str>,
+
+    /// Argument documentation.
     pub doc: &'static str,
+
+    /// Default value.
+    pub default: Option<&'static str>,
+
+    /// Example value (if this is set, the argument is considered to be requried).
+    ///
+    /// This is only used if `Args::metadata().help_mode` is `true`.
+    pub example: Option<&'static str>,
+
+    /// Minimum index that [`Arg::index()`] can have.
     pub min_index: Option<usize>,
+
+    /// Maximum index that [`Arg::index()`] can have.
     pub max_index: Option<usize>,
-    pub metadata: Metadata,
+
+    metadata: Metadata,
 }
 
 impl ArgSpec {
+    /// The default specification.
     pub const DEFAULT: Self = Self {
         name: "ARGUMENT",
+        doc: "",
         default: None,
         example: None,
-        doc: "",
         min_index: None,
         max_index: None,
         metadata: Metadata::DEFAULT,
     };
 
+    /// Makes an [`ArgSpec`] instance with a specified name (equivalent to `noargs::arg(name)`).
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            ..Self::DEFAULT
+        }
+    }
+
+    /// Updates the value of [`ArgSpec::doc`].
+    pub const fn doc(mut self, doc: &'static str) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    /// Updates the value of [`ArgSpec::default`].
+    pub const fn default(mut self, default: &'static str) -> Self {
+        self.default = Some(default);
+        self
+    }
+
+    /// Updates the value of [`ArgSpec::example`].
+    pub const fn example(mut self, example: &'static str) -> Self {
+        self.example = Some(example);
+        self
+    }
+
+    /// Updates the value of [`ArgSpec::min_index`].
+    pub const fn min_index(mut self, index: Option<usize>) -> Self {
+        self.min_index = index;
+        self
+    }
+
+    /// Updates the value of [`ArgSpec::max_index`].
+    pub const fn max_index(mut self, index: Option<usize>) -> Self {
+        self.max_index = index;
+        self
+    }
+
+    /// Takes the first [`Arg`] instance that satisfies this specification from the raw arguments.
     pub fn take(mut self, args: &mut Args) -> Arg {
         self.metadata = args.metadata();
         args.with_record_arg(|args| {
@@ -65,7 +120,9 @@ impl Default for ArgSpec {
     }
 }
 
+/// A positional argument.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[allow(missing_docs)]
 pub enum Arg {
     Positional {
         spec: ArgSpec,
@@ -84,6 +141,7 @@ pub enum Arg {
 }
 
 impl Arg {
+    /// Parse the value of this argument.
     pub fn parse<T>(&self) -> Result<T, Error>
     where
         T: FromStr,
@@ -98,6 +156,7 @@ impl Arg {
         })
     }
 
+    /// Parse the value of this argument if it is present.
     pub fn parse_if_present<T>(&self) -> Result<Option<T>, Error>
     where
         T: FromStr,
@@ -106,6 +165,7 @@ impl Arg {
         self.is_present().then(|| self.parse()).transpose()
     }
 
+    /// Similar to [`Arg::parse()`], but more flexible as this method allows you to specify an arbitrary parsing function.
     pub fn parse_with<F, T>(&self, f: F) -> Result<T, Error>
     where
         F: FnOnce(&Self) -> Result<T, Error>,
@@ -113,6 +173,7 @@ impl Arg {
         f(self)
     }
 
+    /// Returns the specification of this argument.
     pub fn spec(&self) -> ArgSpec {
         match self {
             Arg::Positional { spec, .. }
@@ -122,10 +183,12 @@ impl Arg {
         }
     }
 
+    /// Returns `true` if this argument has a value.
     pub fn is_present(&self) -> bool {
         !matches!(self, Self::None { .. })
     }
 
+    /// Returns the raw value of this argument.
     pub fn raw_value(&self) -> Option<&str> {
         match self {
             Arg::Positional { raw_value, .. } => Some(raw_value.as_str()),
@@ -135,6 +198,7 @@ impl Arg {
         }
     }
 
+    /// Returns the index at which the raw value of this argument was located in [`Args`].
     pub fn index(&self) -> Option<usize> {
         if let Arg::Positional { index, .. } = self {
             Some(*index)

@@ -1,3 +1,15 @@
+//! Imperative command-line argument parser library with no dependencies, no macros, and no implicit I/O.
+//!
+//! # Features
+//!
+//! - Supports the following argument types:
+//!   - Positional arguments ([`Arg`])
+//!   - Named arguments with values ([`Opt`])
+//!   - Named arguments without values ([`Flag`])
+//!   - Subcommands ([`Cmd`])
+//! - Automatically generates help text
+//! - Simple and minimal interface due to its imperative nature (no complex DSL)
+#![warn(missing_docs)]
 mod arg;
 mod args;
 mod cmd;
@@ -26,10 +38,7 @@ pub fn args() -> Args {
 
 /// Makes an [`ArgSpec`] instance with a specified name.
 pub const fn arg(name: &'static str) -> ArgSpec {
-    ArgSpec {
-        name,
-        ..ArgSpec::DEFAULT
-    }
+    ArgSpec::new(name)
 }
 
 /// Makes an [`OptSpec`] instance with a specified name.
