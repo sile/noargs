@@ -214,6 +214,15 @@ impl Arg {
             None
         }
     }
+
+    pub(crate) fn metadata(&self) -> Option<Metadata> {
+        match self {
+            Arg::Positional { metadata, .. }
+            | Arg::Default { metadata, .. }
+            | Arg::Example { metadata, .. } => Some(*metadata),
+            Arg::None { .. } => None,
+        }
+    }
 }
 
 #[cfg(test)]

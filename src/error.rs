@@ -1,6 +1,6 @@
 use std::io::IsTerminal;
 
-use crate::{Arg, Args, Metadata, Opt, args::Taken, formatter::Formatter};
+use crate::{Arg, Args, Metadata, Opt, OptSpec, args::Taken, formatter::Formatter};
 
 /// Possible errors.
 ///
@@ -69,16 +69,54 @@ impl Error {
                 fmt.write("command is not specified");
                 *metadata
             }
-            #[expect(unused_variables)]
             Error::ParseArgError { arg, reason } => {
-                todo!()
+                fmt.write(&format!(
+                    "argument '{}' has an invalid value {:?}: {reason}",
+                    fmt.bold(arg.spec().name),
+                    arg.raw_value().unwrap_or_default()
+                ));
+                if let Some(metadata) = arg.metadata() {
+                    metadata
+                } else {
+                    return fmt.finish();
+                }
             }
             #[expect(unused_variables)]
             Error::MissingArg { arg } => {
                 todo!()
             }
-            #[expect(unused_variables)]
-            Error::ParseOptError { opt, reason } => todo!(),
+            Error::ParseOptError { opt, reason } => {
+                let name = match &**opt {
+                    Opt::Short {
+                        spec: OptSpec { short: Some(c), .. },
+                        ..
+                    } => format!("argument '{}'", fmt.bold(&format!("-{c}"))),
+                    Opt::Env {
+                        spec:
+                            OptSpec {
+                                env: Some(name), ..
+                            },
+                        ..
+                    } => format!(
+                        "environment variable '{}' for '{}'",
+                        fmt.bold(name),
+                        fmt.bold(&format!("--{}", opt.spec().name))
+                    ),
+                    _ => format!(
+                        "argument '{}'",
+                        fmt.bold(&format!(" --{}", opt.spec().name))
+                    ),
+                };
+                fmt.write(&format!(
+                    "{name} has an invalid value {:?}: {reason}",
+                    opt.raw_value().unwrap_or_default()
+                ));
+                if let Some(metadata) = opt.metadata() {
+                    metadata
+                } else {
+                    return fmt.finish();
+                }
+            }
             #[expect(unused_variables)]
             Error::MissingOpt { opt } => todo!(),
             Error::Other(e) => {
@@ -114,7 +152,7 @@ impl std::fmt::Debug for Error {
 
 #[cfg(test)]
 mod tests {
-    use crate::cmd;
+    use crate::{arg, cmd, opt};
 
     use super::*;
 
@@ -159,5 +197,34 @@ Try '--help' for more information."#
         cmd("bar").take(&mut args);
         let e = args.finish().expect_err("error");
         assert_eq!(e.to_string(false), "command is not specified");
+    }
+
+    #[test]
+    fn parse_arg_error() {
+        let mut args = Args::new(["noargs", "foo"].iter().map(|a| a.to_string()));
+        args.metadata_mut().help_flag_name = None;
+        let e = arg("INTEGER")
+            .take(&mut args)
+            .parse::<usize>()
+            .expect_err("error");
+        assert_eq!(
+            e.to_string(false),
+            r#"argument 'INTEGER' has an invalid value "foo": invalid digit found in string"#
+        );
+    }
+
+    #[test]
+    fn parse_opt_error() {
+        let mut args = Args::new(["noargs", "-f=bar"].iter().map(|a| a.to_string()));
+        args.metadata_mut().help_flag_name = None;
+        let e = opt("foo")
+            .short('f')
+            .take(&mut args)
+            .parse::<usize>()
+            .expect_err("error");
+        assert_eq!(
+            e.to_string(false),
+            r#"argument '-f' has an invalid value "bar": invalid digit found in string"#
+        );
     }
 }

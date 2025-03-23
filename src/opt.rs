@@ -349,6 +349,17 @@ impl Opt {
             None
         }
     }
+
+    pub(crate) fn metadata(&self) -> Option<Metadata> {
+        match self {
+            Opt::Long { metadata, .. }
+            | Opt::Short { metadata, .. }
+            | Opt::Env { metadata, .. }
+            | Opt::Default { metadata, .. }
+            | Opt::Example { metadata, .. } => Some(*metadata),
+            Opt::None { .. } => None,
+        }
+    }
 }
 
 #[cfg(test)]
