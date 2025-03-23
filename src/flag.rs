@@ -1,4 +1,4 @@
-use crate::args::{Args, Metadata};
+use crate::args::Args;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FlagSpec {
@@ -8,7 +8,6 @@ pub struct FlagSpec {
     pub env: Option<&'static str>,
     pub min_index: Option<usize>,
     pub max_index: Option<usize>,
-    pub metadata: Metadata,
 }
 
 impl FlagSpec {
@@ -19,7 +18,6 @@ impl FlagSpec {
         env: None,
         min_index: None,
         max_index: None,
-        metadata: Metadata::DEFAULT,
     };
 
     pub const HELP: Self = Self {
@@ -41,8 +39,7 @@ impl FlagSpec {
         ..Self::DEFAULT
     };
 
-    pub fn take(mut self, args: &mut Args) -> Flag {
-        self.metadata = args.metadata();
+    pub fn take(self, args: &mut Args) -> Flag {
         args.with_record_flag(|args| {
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
                 let Some(value) = &mut raw_arg.value else {

@@ -27,8 +27,6 @@ pub struct ArgSpec {
 
     /// Maximum index that [`Arg::index()`] can have.
     pub max_index: Option<usize>,
-
-    metadata: Metadata,
 }
 
 impl ArgSpec {
@@ -40,7 +38,6 @@ impl ArgSpec {
         example: None,
         min_index: None,
         max_index: None,
-        metadata: Metadata::DEFAULT,
     };
 
     /// Makes an [`ArgSpec`] instance with a specified name (equivalent to `noargs::arg(name)`).
@@ -82,14 +79,20 @@ impl ArgSpec {
     }
 
     /// Takes the first [`Arg`] instance that satisfies this specification from the raw arguments.
-    pub fn take(mut self, args: &mut Args) -> Arg {
-        self.metadata = args.metadata();
+    pub fn take(self, args: &mut Args) -> Arg {
+        let metadata = args.metadata();
         args.with_record_arg(|args| {
             if args.metadata().help_mode {
                 return if self.default.is_some() {
-                    Arg::Default { spec: self }
+                    Arg::Default {
+                        spec: self,
+                        metadata,
+                    }
                 } else if self.example.is_some() {
-                    Arg::Example { spec: self }
+                    Arg::Example {
+                        spec: self,
+                        metadata,
+                    }
                 } else {
                     Arg::None { spec: self }
                 };
@@ -99,6 +102,7 @@ impl ArgSpec {
                 if let Some(value) = raw_arg.value.take() {
                     return Arg::Positional {
                         spec: self,
+                        metadata,
                         index,
                         raw_value: value,
                     };
@@ -106,7 +110,10 @@ impl ArgSpec {
             }
 
             if self.default.is_some() {
-                Arg::Default { spec: self }
+                Arg::Default {
+                    spec: self,
+                    metadata,
+                }
             } else {
                 Arg::None { spec: self }
             }
@@ -126,14 +133,17 @@ impl Default for ArgSpec {
 pub enum Arg {
     Positional {
         spec: ArgSpec,
+        metadata: Metadata,
         index: usize,
         raw_value: String,
     },
     Default {
         spec: ArgSpec,
+        metadata: Metadata,
     },
     Example {
         spec: ArgSpec,
+        metadata: Metadata,
     },
     None {
         spec: ArgSpec,
@@ -177,8 +187,8 @@ impl Arg {
     pub fn spec(&self) -> ArgSpec {
         match self {
             Arg::Positional { spec, .. }
-            | Arg::Default { spec }
-            | Arg::Example { spec }
+            | Arg::Default { spec, .. }
+            | Arg::Example { spec, .. }
             | Arg::None { spec } => *spec,
         }
     }
@@ -192,8 +202,8 @@ impl Arg {
     pub fn raw_value(&self) -> Option<&str> {
         match self {
             Arg::Positional { raw_value, .. } => Some(raw_value.as_str()),
-            Arg::Default { spec } => spec.default,
-            Arg::Example { spec } => spec.example,
+            Arg::Default { spec, .. } => spec.default,
+            Arg::Example { spec, .. } => spec.example,
             Arg::None { .. } => None,
         }
     }

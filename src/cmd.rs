@@ -1,4 +1,4 @@
-use crate::args::{Args, Metadata};
+use crate::args::Args;
 
 /// Specification for [`Cmd`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -14,8 +14,6 @@ pub struct CmdSpec {
 
     /// Maximum index that [`Cmd::index()`] can have.
     pub max_index: Option<usize>,
-
-    metadata: Metadata,
 }
 
 impl CmdSpec {
@@ -25,7 +23,6 @@ impl CmdSpec {
         doc: "",
         min_index: None,
         max_index: None,
-        metadata: Metadata::DEFAULT,
     };
 
     /// Makes an [`CmdSpec`] instance with a specified name (equivalent to `noargs::cmd(name)`).
@@ -55,8 +52,7 @@ impl CmdSpec {
     }
 
     /// Takes the first [`Cmd`] instance that satisfies this specification from the raw arguments.
-    pub fn take(mut self, args: &mut Args) -> Cmd {
-        self.metadata = args.metadata();
+    pub fn take(self, args: &mut Args) -> Cmd {
         args.with_record_cmd(|args| {
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
                 let Some(value) = &raw_arg.value else {

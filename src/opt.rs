@@ -16,7 +16,6 @@ pub struct OptSpec {
     pub example: Option<&'static str>,
     pub min_index: Option<usize>,
     pub max_index: Option<usize>,
-    pub metadata: Metadata,
 }
 
 impl OptSpec {
@@ -30,17 +29,22 @@ impl OptSpec {
         example: None,
         min_index: None,
         max_index: None,
-        metadata: Metadata::DEFAULT,
     };
 
-    pub fn take(mut self, args: &mut Args) -> Opt {
-        self.metadata = args.metadata();
+    pub fn take(self, args: &mut Args) -> Opt {
+        let metadata = args.metadata();
         args.with_record_opt(|args| {
             if args.metadata().help_mode {
                 return if self.default.is_some() {
-                    Opt::Default { spec: self }
+                    Opt::Default {
+                        spec: self,
+                        metadata,
+                    }
                 } else if self.example.is_some() {
-                    Opt::Example { spec: self }
+                    Opt::Example {
+                        spec: self,
+                        metadata,
+                    }
                 } else {
                     Opt::None { spec: self }
                 };
@@ -78,6 +82,7 @@ impl OptSpec {
                             raw_arg.value = None;
                             pending = Some(Opt::Long {
                                 spec: self,
+                                metadata,
                                 index,
                                 raw_value: None,
                             });
@@ -87,6 +92,7 @@ impl OptSpec {
                             raw_arg.value = None;
                             return Opt::Long {
                                 spec: self,
+                                metadata,
                                 index,
                                 raw_value: Some(opt_value),
                             };
@@ -104,6 +110,7 @@ impl OptSpec {
                         raw_arg.value = None;
                         pending = Some(Opt::Short {
                             spec: self,
+                            metadata,
                             index,
                             raw_value: None,
                         });
@@ -114,6 +121,7 @@ impl OptSpec {
                         raw_arg.value = None;
                         return Opt::Short {
                             spec: self,
+                            metadata,
                             index,
                             raw_value: Some(opt_value),
                         };
@@ -129,12 +137,19 @@ impl OptSpec {
             {
                 Opt::Env {
                     spec: self,
+                    metadata,
                     raw_value: value,
                 }
             } else if self.default.is_some() {
-                Opt::Default { spec: self }
+                Opt::Default {
+                    spec: self,
+                    metadata,
+                }
             } else if self.example.is_some() && args.metadata().help_mode {
-                Opt::Example { spec: self }
+                Opt::Example {
+                    spec: self,
+                    metadata,
+                }
             } else {
                 Opt::None { spec: self }
             }
@@ -152,23 +167,28 @@ impl Default for OptSpec {
 pub enum Opt {
     Long {
         spec: OptSpec,
+        metadata: Metadata,
         index: usize,
         raw_value: Option<String>,
     },
     Short {
         spec: OptSpec,
+        metadata: Metadata,
         index: usize,
         raw_value: Option<String>,
     },
     Env {
         spec: OptSpec,
+        metadata: Metadata,
         raw_value: String,
     },
     Default {
         spec: OptSpec,
+        metadata: Metadata,
     },
     Example {
         spec: OptSpec,
+        metadata: Metadata,
     },
     None {
         spec: OptSpec,
@@ -210,8 +230,8 @@ impl Opt {
             Opt::Long { spec, .. }
             | Opt::Short { spec, .. }
             | Opt::Env { spec, .. }
-            | Opt::Default { spec }
-            | Opt::Example { spec }
+            | Opt::Default { spec, .. }
+            | Opt::Example { spec, .. }
             | Opt::None { spec } => *spec,
         }
     }
@@ -226,8 +246,8 @@ impl Opt {
                 raw_value.as_ref().map(|v| v.as_str())
             }
             Opt::Env { raw_value, .. } => Some(raw_value),
-            Opt::Default { spec } => spec.default,
-            Opt::Example { spec } => spec.example,
+            Opt::Default { spec, .. } => spec.default,
+            Opt::Example { spec, .. } => spec.example,
             Opt::None { .. } => None,
         }
     }
