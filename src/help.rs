@@ -139,17 +139,17 @@ impl<'a> HelpBuilder<'a> {
 
             if spec.example.is_some() {
                 self.fmt
-                    .write(&format!("  <{}>\n", self.fmt.bold(spec.name)));
+                    .write(&format!("  <{}>:\n", self.fmt.bold(spec.name)));
             } else {
                 self.fmt
-                    .write(&format!("  [{}]\n", self.fmt.bold(spec.name)));
+                    .write(&format!("  [{}]:\n", self.fmt.bold(spec.name)));
             }
 
             for line in spec.doc.lines() {
-                self.fmt.write(&format!("      {line}\n"));
+                self.fmt.write(&format!("    {line}\n"));
             }
             if let Some(default) = spec.default {
-                self.fmt.write(&format!("      [default: {default}]\n"));
+                self.fmt.write(&format!("    [default: {default}]\n"));
             }
         }
 
@@ -185,30 +185,30 @@ impl<'a> HelpBuilder<'a> {
             format!("--{}", spec.name)
         };
         self.fmt
-            .write(&format!("  {} <{}>\n", self.fmt.bold(&names), spec.ty));
+            .write(&format!("  {} <{}>:\n", self.fmt.bold(&names), spec.ty));
         for line in spec.doc.lines() {
-            self.fmt.write(&format!("      {line}\n"));
+            self.fmt.write(&format!("    {line}\n"));
         }
         if let Some(env) = spec.env {
-            self.fmt.write(&format!("      [env: {env}]\n"));
+            self.fmt.write(&format!("    [env: {env}]\n"));
         }
         if let Some(default) = spec.default {
-            self.fmt.write(&format!("      [default: {default}]\n"));
+            self.fmt.write(&format!("    [default: {default}]\n"));
         }
     }
 
     fn build_flag(&mut self, spec: FlagSpec) {
         let names = if let Some(short) = spec.short {
-            format!("--{}, -{short}", spec.name)
+            format!("--{}, -{short}:", spec.name)
         } else {
-            format!("--{}", spec.name)
+            format!("--{}:", spec.name)
         };
         self.fmt.write(&format!("  {}\n", self.fmt.bold(&names)));
         for line in spec.doc.lines() {
-            self.fmt.write(&format!("      {line}\n"));
+            self.fmt.write(&format!("    {line}\n"));
         }
         if let Some(env) = spec.env {
-            self.fmt.write(&format!("      [env: {env}]\n"));
+            self.fmt.write(&format!("    [env: {env}]\n"));
         }
     }
 
@@ -253,10 +253,10 @@ mod tests {
 Usage: noargs [OPTIONS]
 
 Options:
-  --help, -h
-      Print help
-  --version
-      Print version
+  --help, -h:
+    Print help
+  --version:
+    Print version
 "#
         );
     }
@@ -284,13 +284,13 @@ Options:
             r#"Usage: noargs [OPTIONS]
 
 Options:
-  --help, -h
-      Print help
-  --foo, -f <INTEGER>
-      An integer
-      This is foo
-      [env: FOO_ENV]
-      [default: 10]
+  --help, -h:
+    Print help
+  --foo, -f <INTEGER>:
+    An integer
+    This is foo
+    [env: FOO_ENV]
+    [default: 10]
 "#
         );
     }
@@ -320,10 +320,10 @@ Example:
   $ noargs --foo 10
 
 Options:
-  --help, -h
-      Print help
-  --foo, -f <INTEGER>
-      An integer
+  --help, -h:
+    Print help
+  --foo, -f <INTEGER>:
+    An integer
 "#
         );
     }
@@ -366,17 +366,17 @@ Example:
   $ noargs 3
 
 Arguments:
-  <REQUIRED>
-      Foo
-  [OPTIONAL]
-      Bar
-      [default: 9]
-  [MULTI]
-      Baz
+  <REQUIRED>:
+    Foo
+  [OPTIONAL]:
+    Bar
+    [default: 9]
+  [MULTI]:
+    Baz
 
 Options:
-  --help, -h
-      Print help
+  --help, -h:
+    Print help
 "#
         );
     }
