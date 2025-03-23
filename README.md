@@ -18,3 +18,8 @@ Features
   - Subcommands ([`Cmd`])
 - Automatically generates help text
 - Simple and minimal interface due to its imperative nature (no complex DSL)
+
+[`Arg`]: https://docs.rs/noargs/latest/noargs/struct.Arg.html
+[`Opt`]: https://docs.rs/noargs/latest/noargs/struct.Opt.html
+[`Flag`]: https://docs.rs/noargs/latest/noargs/struct.Flag.html
+[`Cmd`]: https://docs.rs/noargs/latest/noargs/struct.Cmd.html
