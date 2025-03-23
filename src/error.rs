@@ -53,16 +53,21 @@ impl Error {
 
     fn to_string(&self, is_terminal: bool) -> String {
         let mut fmt = Formatter::new(is_terminal);
-        match self {
+        let metadata = match self {
             Error::UnexpectedArg { metadata, raw_arg } => {
-                Self::format_unexpected_arg(&mut fmt, *metadata, raw_arg);
+                fmt.write(&format!(
+                    "unexpected argument '{}' found",
+                    fmt.bold(raw_arg)
+                ));
+                *metadata
             }
             Error::UndefinedCommand { metadata, raw_arg } => {
-                Self::format_undefined_command(&mut fmt, *metadata, raw_arg);
+                fmt.write(&format!("'{}' command is not defined", fmt.bold(raw_arg)));
+                *metadata
             }
-            #[expect(unused_variables)]
             Error::MissingCommand { metadata } => {
-                todo!()
+                fmt.write("command is not specified");
+                *metadata
             }
             #[expect(unused_variables)]
             Error::ParseArgError { arg, reason } => {
@@ -78,22 +83,11 @@ impl Error {
             Error::MissingOpt { opt } => todo!(),
             Error::Other(e) => {
                 fmt.write(&e.to_string());
+                return fmt.finish();
             }
-        }
+        };
+        Self::write_help_line(&mut fmt, metadata);
         fmt.finish()
-    }
-
-    fn format_unexpected_arg(fmt: &mut Formatter, metadata: Metadata, raw_arg: &str) {
-        fmt.write(&format!(
-            "unexpected argument '{}' found",
-            fmt.bold(raw_arg)
-        ));
-        Self::write_help_line(fmt, metadata);
-    }
-
-    fn format_undefined_command(fmt: &mut Formatter, metadata: Metadata, raw_arg: &str) {
-        fmt.write(&format!("'{}' command is not defined", fmt.bold(raw_arg)));
-        Self::write_help_line(fmt, metadata);
     }
 
     fn write_help_line(fmt: &mut Formatter, metadata: Metadata) {
@@ -155,5 +149,15 @@ Try '--help' for more information."#
         cmd("bar").take(&mut args);
         let e = args.finish().expect_err("error");
         assert_eq!(e.to_string(false), "'baz' command is not defined");
+    }
+
+    #[test]
+    fn missing_command_error() {
+        let mut args = Args::new(["noargs"].iter().map(|a| a.to_string()));
+        args.metadata_mut().help_flag_name = None;
+        cmd("foo").take(&mut args);
+        cmd("bar").take(&mut args);
+        let e = args.finish().expect_err("error");
+        assert_eq!(e.to_string(false), "command is not specified");
     }
 }
