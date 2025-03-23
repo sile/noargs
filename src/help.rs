@@ -137,22 +137,11 @@ impl<'a> HelpBuilder<'a> {
         self.fmt.write(&self.fmt.bold_underline("Example:\n"));
         self.fmt
             .write(&format!("  $ {}", self.args.metadata().app_name));
-        if let Some(name) = self.subcommand_name {
-            self.fmt.write(&format!(" ... {name}"));
-        }
-        for entry in &self.log {
-            match entry {
-                Taken::Arg(arg) => {
-                    if let Some(value) = arg.spec().example {
-                        self.fmt.write(&format!(" {value}"));
-                    }
-                }
-                Taken::Opt(opt) => {
-                    if let Some(value) = opt.spec().example {
-                        self.fmt.write(&format!(" --{} {value}", opt.spec().name));
-                    }
-                }
-                _ => {}
+
+        // [NOTE] Need to use `self.args.log()` instead of `self.log` here.
+        for entry in self.args.log() {
+            if let Some(example) = entry.example() {
+                self.fmt.write(&format!(" {example}"));
             }
         }
         self.fmt.write("\n\n");
@@ -490,7 +479,6 @@ Options:
         let mut args = args(&["noargs", "get"]);
         args.metadata_mut().app_description = "";
         FlagSpec::HELP.take(&mut args);
-        // TODO: Add required arg
         SubcommandSpec {
             name: "put",
             doc: "Put an entry",
@@ -526,7 +514,7 @@ Options:
             r#"Usage: noargs ... get [OPTIONS] <KEY>
 
 Example:
-  $ noargs ... get hi
+  $ noargs get hi
 
 Arguments:
   <KEY>:

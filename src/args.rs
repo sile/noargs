@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{arg::Arg, error::Error, flag::Flag, opt::Opt, subcommand::Subcommand};
 
 #[derive(Debug)]
@@ -161,11 +163,23 @@ impl Taken {
         }
     }
 
+    pub fn example(&self) -> Option<Cow<'static, str>> {
+        match self {
+            Taken::Arg(arg) => arg.spec().example.map(Cow::Borrowed),
+            Taken::Opt(opt) => opt
+                .spec()
+                .example
+                .map(|v| Cow::Owned(format!("--{} {v}", opt.spec().name))),
+            Taken::Subcommand(cmd) if cmd.is_present() => Some(Cow::Borrowed(cmd.spec().name)),
+            _ => None,
+        }
+    }
+
     pub fn contains_index(&self, index: usize) -> bool {
         (self.min_index().unwrap_or(0)..=self.max_index().unwrap_or(usize::MAX)).contains(&index)
     }
 
-    pub fn min_index(&self) -> Option<usize> {
+    fn min_index(&self) -> Option<usize> {
         match self {
             Taken::Arg(x) => x.spec().min_index,
             Taken::Opt(x) => x.spec().min_index,
@@ -174,7 +188,7 @@ impl Taken {
         }
     }
 
-    pub fn max_index(&self) -> Option<usize> {
+    fn max_index(&self) -> Option<usize> {
         match self {
             Taken::Arg(x) => x.spec().max_index,
             Taken::Opt(x) => x.spec().max_index,
