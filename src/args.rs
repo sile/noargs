@@ -1,10 +1,10 @@
-use crate::{arg::ArgSpec, error::Error, flag::FlagSpec, opt::OptSpec, subcommand::SubcommandSpec};
+use crate::{arg::Arg, error::Error, flag::Flag, opt::Opt, subcommand::Subcommand};
 
 #[derive(Debug)]
 pub struct Args {
     metadata: Metadata,
     raw_args: Vec<RawArg>,
-    log: Vec<Spec>,
+    log: Vec<Taken>,
 }
 
 impl Args {
@@ -64,24 +64,44 @@ impl Args {
             .skip(min_index.unwrap_or(0))
     }
 
-    pub(crate) fn log(&self) -> &[Spec] {
+    pub(crate) fn log(&self) -> &[Taken] {
         &self.log
     }
 
-    pub(crate) fn record_arg(&mut self, spec: ArgSpec) {
-        self.log.push(Spec::Arg(spec));
+    pub(crate) fn with_record_arg<F>(&mut self, f: F) -> Arg
+    where
+        F: FnOnce(&mut Self) -> Arg,
+    {
+        let arg = f(self);
+        self.log.push(Taken::Arg(arg.clone()));
+        arg
     }
 
-    pub(crate) fn record_opt(&mut self, spec: OptSpec) {
-        self.log.push(Spec::Opt(spec));
+    pub(crate) fn with_record_opt<F>(&mut self, f: F) -> Opt
+    where
+        F: FnOnce(&mut Self) -> Opt,
+    {
+        let opt = f(self);
+        self.log.push(Taken::Opt(opt.clone()));
+        opt
     }
 
-    pub(crate) fn record_flag(&mut self, spec: FlagSpec) {
-        self.log.push(Spec::Flag(spec));
+    pub(crate) fn with_record_flag<F>(&mut self, f: F) -> Flag
+    where
+        F: FnOnce(&mut Self) -> Flag,
+    {
+        let flag = f(self);
+        self.log.push(Taken::Flag(flag));
+        flag
     }
 
-    pub(crate) fn record_subcommand(&mut self, spec: SubcommandSpec) {
-        self.log.push(Spec::Subcommand(spec));
+    pub(crate) fn with_record_subcommand<F>(&mut self, f: F) -> Subcommand
+    where
+        F: FnOnce(&mut Self) -> Subcommand,
+    {
+        let subcommand = f(self);
+        self.log.push(Taken::Subcommand(subcommand));
+        subcommand
     }
 
     pub(crate) fn next_raw_arg_value(&self) -> Option<&str> {
@@ -123,30 +143,39 @@ impl Default for Metadata {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Spec {
-    Arg(ArgSpec),
-    Opt(OptSpec),
-    Flag(FlagSpec),
-    Subcommand(SubcommandSpec),
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Taken {
+    Arg(Arg),
+    Opt(Opt),
+    Flag(Flag),
+    Subcommand(Subcommand),
 }
 
-impl Spec {
-    pub fn min_index(self) -> Option<usize> {
+impl Taken {
+    pub fn name(&self) -> &'static str {
         match self {
-            Spec::Arg(spec) => spec.min_index,
-            Spec::Opt(spec) => spec.min_index,
-            Spec::Flag(spec) => spec.min_index,
-            Spec::Subcommand(spec) => spec.min_index,
+            Taken::Arg(arg) => arg.spec().name,
+            Taken::Opt(opt) => opt.spec().name,
+            Taken::Flag(flag) => flag.spec().name,
+            Taken::Subcommand(subcommand) => subcommand.spec().name,
         }
     }
 
-    pub fn max_index(self) -> Option<usize> {
+    pub fn min_index(&self) -> Option<usize> {
         match self {
-            Spec::Arg(spec) => spec.max_index,
-            Spec::Opt(spec) => spec.max_index,
-            Spec::Flag(spec) => spec.max_index,
-            Spec::Subcommand(spec) => spec.max_index,
+            Taken::Arg(x) => x.spec().min_index,
+            Taken::Opt(x) => x.spec().min_index,
+            Taken::Flag(x) => x.spec().min_index,
+            Taken::Subcommand(x) => x.spec().min_index,
+        }
+    }
+
+    pub fn max_index(&self) -> Option<usize> {
+        match self {
+            Taken::Arg(x) => x.spec().max_index,
+            Taken::Opt(x) => x.spec().max_index,
+            Taken::Flag(x) => x.spec().max_index,
+            Taken::Subcommand(x) => x.spec().max_index,
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::args::{Args, Metadata};
 
+// TODO: s/SubcommandSpec/CmdSpec/
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SubcommandSpec {
     pub name: &'static str,
@@ -20,20 +21,20 @@ impl SubcommandSpec {
 
     pub fn take(mut self, args: &mut Args) -> Subcommand {
         self.metadata = args.metadata();
-        args.record_subcommand(self);
+        args.with_record_subcommand(|args| {
+            for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
+                let Some(value) = &raw_arg.value else {
+                    continue;
+                };
 
-        for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
-            let Some(value) = &raw_arg.value else {
-                continue;
-            };
-
-            if value == self.name {
-                raw_arg.value = None;
-                return Subcommand::Some { spec: self, index };
+                if value == self.name {
+                    raw_arg.value = None;
+                    return Subcommand::Some { spec: self, index };
+                }
             }
-        }
 
-        Subcommand::None { spec: self }
+            Subcommand::None { spec: self }
+        })
     }
 }
 

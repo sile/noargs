@@ -43,42 +43,42 @@ impl FlagSpec {
 
     pub fn take(mut self, args: &mut Args) -> Flag {
         self.metadata = args.metadata();
-        args.record_flag(self);
+        args.with_record_flag(|args| {
+            for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
+                let Some(value) = &mut raw_arg.value else {
+                    continue;
+                };
+                if !value.starts_with('-') {
+                    continue;
+                }
 
-        for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
-            let Some(value) = &mut raw_arg.value else {
-                continue;
-            };
-            if !value.starts_with('-') {
-                continue;
+                if value.starts_with("--") {
+                    if &value[2..] == self.name {
+                        raw_arg.value = None;
+                        return Flag::Long { spec: self, index };
+                    }
+                } else if let Some(i) = value
+                    .char_indices()
+                    .skip(1)
+                    .find_map(|(i, c)| (Some(c) == self.short).then_some(i))
+                {
+                    value.remove(i);
+                    if value.len() == 1 {
+                        raw_arg.value = None;
+                    }
+                    return Flag::Short { spec: self, index };
+                }
             }
 
-            if value.starts_with("--") {
-                if &value[2..] == self.name {
-                    raw_arg.value = None;
-                    return Flag::Long { spec: self, index };
-                }
-            } else if let Some(i) = value
-                .char_indices()
-                .skip(1)
-                .find_map(|(i, c)| (Some(c) == self.short).then_some(i))
+            if self
+                .env
+                .is_some_and(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()))
             {
-                value.remove(i);
-                if value.len() == 1 {
-                    raw_arg.value = None;
-                }
-                return Flag::Short { spec: self, index };
+                Flag::Env { spec: self }
+            } else {
+                Flag::None { spec: self }
             }
-        }
-
-        if self
-            .env
-            .is_some_and(|name| std::env::var(name).is_ok_and(|v| !v.is_empty()))
-        {
-            Flag::Env { spec: self }
-        } else {
-            Flag::None { spec: self }
-        }
+        })
     }
 }
 

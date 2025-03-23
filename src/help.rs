@@ -1,17 +1,14 @@
-use std::{collections::HashSet, usize};
+use std::{borrow::Cow, collections::HashSet, usize};
 
 use crate::{
-    arg::ArgSpec,
-    args::{Args, Spec},
-    flag::FlagSpec,
+    args::{Args, Taken},
     formatter::Formatter,
-    opt::OptSpec,
 };
 
 #[derive(Debug)]
 pub struct HelpBuilder<'a> {
     args: &'a Args,
-    specs: Vec<Spec>,
+    log: Vec<Taken>,
     partial: bool,
     fmt: Formatter,
 }
@@ -20,26 +17,26 @@ impl<'a> HelpBuilder<'a> {
     pub fn new(args: &'a Args, is_terminal: bool) -> Self {
         let mut this = Self {
             args,
-            specs: args.log().to_vec(),
+            log: args.log().to_vec(),
             partial: false,
             fmt: Formatter::new(is_terminal),
         };
 
         if this.has_subcommands() {
-            let old_len = this.specs.len();
+            let old_len = this.log.len();
             if let Some(level) = this
-                .specs
+                .log
                 .iter()
                 .map(|spec| spec.min_index())
                 .max()
                 .unwrap_or_default()
             {
-                this.specs.retain(|spec| {
+                this.log.retain(|spec| {
                     (spec.min_index().unwrap_or(0)..=spec.max_index().unwrap_or(usize::MAX))
                         .contains(&level)
                 });
             }
-            if old_len != this.specs.len() {
+            if old_len != this.log.len() {
                 this.partial = true;
             }
         }
@@ -79,14 +76,15 @@ impl<'a> HelpBuilder<'a> {
         // TODO: subcommand
 
         // Required options.
-        for spec in &self.specs {
-            let Spec::Opt(spec) = spec else {
+        for entry in &self.log {
+            let Taken::Opt(opt) = entry else {
                 continue;
             };
-            if spec.example.is_none() {
+            let opt = opt.spec();
+            if opt.example.is_none() {
                 continue;
             }
-            self.fmt.write(&format!(" --{} <{}>", spec.name, spec.ty));
+            self.fmt.write(&format!(" --{} <{}>", opt.name, opt.ty));
         }
 
         // Other options.
@@ -96,23 +94,24 @@ impl<'a> HelpBuilder<'a> {
 
         // Positional arguments.
         let mut last = None;
-        for &spec in &self.specs {
-            let Spec::Arg(spec) = spec else {
+        for entry in &self.log {
+            let Taken::Arg(arg) = entry else {
                 continue;
             };
+            let arg = arg.spec();
 
-            if last == Some(spec) {
+            if last == Some(arg) {
                 if !self.fmt.text().ends_with("...") {
                     self.fmt.write("...");
                 }
-            } else if spec.example.is_some() {
+            } else if arg.example.is_some() {
                 // Required argument.
-                self.fmt.write(&format!(" <{}>", spec.name));
+                self.fmt.write(&format!(" <{}>", arg.name));
             } else {
                 // Optional argument.
-                self.fmt.write(&format!(" [{}]", spec.name));
+                self.fmt.write(&format!(" [{}]", arg.name));
             }
-            last = Some(spec);
+            last = Some(arg);
         }
 
         // Subcommands.
@@ -131,20 +130,17 @@ impl<'a> HelpBuilder<'a> {
         self.fmt.write(&self.fmt.bold_underline("Example:\n"));
         self.fmt
             .write(&format!("  $ {}", self.args.metadata().app_name));
-        for spec in &self.specs {
-            match spec {
-                Spec::Arg(ArgSpec {
-                    example: Some(value),
-                    ..
-                }) => {
-                    self.fmt.write(&format!(" {value}"));
+        for entry in &self.log {
+            match entry {
+                Taken::Arg(arg) => {
+                    if let Some(value) = arg.spec().example {
+                        self.fmt.write(&format!(" {value}"));
+                    }
                 }
-                Spec::Opt(OptSpec {
-                    name,
-                    example: Some(value),
-                    ..
-                }) => {
-                    self.fmt.write(&format!(" --{name} {value}"));
+                Taken::Opt(opt) => {
+                    if let Some(value) = opt.spec().example {
+                        self.fmt.write(&format!(" --{} {value}", opt.spec().name));
+                    }
                 }
                 _ => {}
             }
@@ -159,14 +155,14 @@ impl<'a> HelpBuilder<'a> {
 
         self.fmt.write(&self.fmt.bold_underline("Commands:\n"));
 
-        for &spec in &self.specs {
-            let Spec::Subcommand(spec) = spec else {
+        for entry in &self.log {
+            let Taken::Subcommand(cmd) = entry else {
                 continue;
             };
+            let cmd = cmd.spec();
 
-            self.fmt
-                .write(&format!("  {}:\n", self.fmt.bold(spec.name)));
-            for line in spec.doc.lines() {
+            self.fmt.write(&format!("  {}:\n", self.fmt.bold(cmd.name)));
+            for line in cmd.doc.lines() {
                 self.fmt.write(&format!("    {line}\n"));
             }
         }
@@ -182,27 +178,29 @@ impl<'a> HelpBuilder<'a> {
         self.fmt.write(&self.fmt.bold_underline("Arguments:\n"));
 
         let mut known = HashSet::new();
-        for &spec in &self.specs {
-            let Spec::Arg(spec) = spec else {
+        for entry in &self.log {
+            let Taken::Arg(arg) = entry else {
                 continue;
             };
-            if known.contains(&spec) {
+            let arg = arg.spec();
+
+            if known.contains(&arg) {
                 continue;
             }
-            known.insert(spec);
+            known.insert(arg);
 
-            if spec.example.is_some() {
+            if arg.example.is_some() {
                 self.fmt
-                    .write(&format!("  <{}>:\n", self.fmt.bold(spec.name)));
+                    .write(&format!("  <{}>:\n", self.fmt.bold(arg.name)));
             } else {
                 self.fmt
-                    .write(&format!("  [{}]:\n", self.fmt.bold(spec.name)));
+                    .write(&format!("  [{}]:\n", self.fmt.bold(arg.name)));
             }
 
-            for line in spec.doc.lines() {
+            for line in arg.doc.lines() {
                 self.fmt.write(&format!("    {line}\n"));
             }
-            if let Some(default) = spec.default {
+            if let Some(default) = arg.default {
                 self.fmt.write(&format!("    [default: {default}]\n"));
             }
         }
@@ -216,78 +214,75 @@ impl<'a> HelpBuilder<'a> {
         }
 
         self.fmt.write(&self.fmt.bold_underline("Options:\n"));
-        let mut last = None;
-        // TODO: remove clone
-        for spec in self.specs.clone() {
-            if Some(spec) == last {
+
+        let mut known = HashSet::new();
+        for entry in &self.log {
+            let name = entry.name();
+            let (short, ty, doc, env, default) = match entry {
+                Taken::Opt(opt) => {
+                    let opt = opt.spec();
+                    (opt.short, Some(opt.ty), opt.doc, opt.env, opt.default)
+                }
+                Taken::Flag(flag) => {
+                    let flag = flag.spec();
+                    (flag.short, None, flag.doc, flag.env, None)
+                }
+                _ => continue,
+            };
+
+            if known.contains(entry.name()) {
                 continue;
             }
+            known.insert(name);
 
-            match spec {
-                Spec::Opt(spec) => self.build_opt(spec),
-                Spec::Flag(spec) => self.build_flag(spec),
-                _ => {}
+            let names = if let Some(short) = short {
+                format!("--{name}, -{short}")
+            } else {
+                format!("--{name}")
+            };
+            self.fmt.write(&format!(
+                "  {}{}:\n",
+                self.fmt.bold(&names),
+                if let Some(ty) = ty {
+                    Cow::Owned(format!(" <{ty}>"))
+                } else {
+                    Cow::Borrowed("")
+                }
+            ));
+            for line in doc.lines() {
+                self.fmt.write(&format!("    {line}\n"));
             }
-            last = Some(spec);
-        }
-    }
-
-    fn build_opt(&mut self, spec: OptSpec) {
-        let names = if let Some(short) = spec.short {
-            format!("--{}, -{short}", spec.name)
-        } else {
-            format!("--{}", spec.name)
-        };
-        self.fmt
-            .write(&format!("  {} <{}>:\n", self.fmt.bold(&names), spec.ty));
-        for line in spec.doc.lines() {
-            self.fmt.write(&format!("    {line}\n"));
-        }
-        if let Some(env) = spec.env {
-            self.fmt.write(&format!("    [env: {env}]\n"));
-        }
-        if let Some(default) = spec.default {
-            self.fmt.write(&format!("    [default: {default}]\n"));
-        }
-    }
-
-    fn build_flag(&mut self, spec: FlagSpec) {
-        let names = if let Some(short) = spec.short {
-            format!("--{}, -{short}:", spec.name)
-        } else {
-            format!("--{}:", spec.name)
-        };
-        self.fmt.write(&format!("  {}\n", self.fmt.bold(&names)));
-        for line in spec.doc.lines() {
-            self.fmt.write(&format!("    {line}\n"));
-        }
-        if let Some(env) = spec.env {
-            self.fmt.write(&format!("    [env: {env}]\n"));
+            if let Some(env) = env {
+                self.fmt.write(&format!("    [env: {env}]\n"));
+            }
+            if let Some(default) = default {
+                self.fmt.write(&format!("    [default: {default}]\n"));
+            }
         }
     }
 
     fn has_positional_args(&self) -> bool {
-        self.specs.iter().any(|spec| matches!(spec, Spec::Arg(_)))
+        self.log.iter().any(|entry| matches!(entry, Taken::Arg(_)))
     }
 
     fn has_subcommands(&self) -> bool {
-        self.specs
+        self.log
             .iter()
-            .any(|spec| matches!(spec, Spec::Subcommand(_)))
+            .any(|entry| matches!(entry, Taken::Subcommand(_)))
     }
 
     fn has_options(&self, include_requried: bool) -> bool {
-        self.specs.iter().any(|spec| match spec {
-            Spec::Opt(spec) => include_requried || spec.example.is_none(),
-            Spec::Flag(_) => true,
-            Spec::Arg(_) | Spec::Subcommand(_) => false,
+        self.log.iter().any(|entry| match entry {
+            Taken::Opt(opt) => include_requried || opt.spec().example.is_none(),
+            Taken::Flag(_) => true,
+            Taken::Arg(_) | Taken::Subcommand(_) => false,
         })
     }
 
     fn has_examples(&self) -> bool {
-        self.specs.iter().any(|spec| match spec {
-            Spec::Opt(spec) => spec.example.is_some(),
-            Spec::Arg(spec) => spec.example.is_some(),
+        self.log.iter().any(|entry| match entry {
+            Taken::Opt(opt) => opt.spec().example.is_some(),
+            Taken::Arg(arg) => arg.spec().example.is_some(),
             _ => false,
         })
     }
@@ -295,7 +290,7 @@ impl<'a> HelpBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::subcommand::SubcommandSpec;
+    use crate::{arg::ArgSpec, flag::FlagSpec, opt::OptSpec, subcommand::SubcommandSpec};
 
     use super::*;
 
