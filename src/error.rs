@@ -7,8 +7,6 @@ use crate::{
     opt::Opt,
 };
 
-pub type Result<T> = std::result::Result<T, Error>;
-
 pub enum Error {
     UnexpectedArg {
         metadata: Metadata,
@@ -33,7 +31,11 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn check_unexpected_arg(args: &Args) -> Result<()> {
+    pub(crate) fn check_undefined_command(args: &Args) -> Result<(), Error> {
+        todo!()
+    }
+
+    pub(crate) fn check_unexpected_arg(args: &Args) -> Result<(), Error> {
         if let Some(unexpected_arg) = args.next_raw_arg_value() {
             Err(Error::UnexpectedArg {
                 metadata: args.metadata(),

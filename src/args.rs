@@ -43,12 +43,12 @@ impl Args {
     }
 
     pub fn finish(self) -> Result<Option<String>, Error> {
-        // TODO: check unexpected args
-        // TODO: check unexpected command
         if self.metadata.help_mode {
             let help = HelpBuilder::new(&self, std::io::stdout().is_terminal()).build();
             Ok(Some(help))
         } else {
+            Error::check_undefined_command(&self)?;
+            Error::check_unexpected_arg(&self)?;
             Ok(None)
         }
     }

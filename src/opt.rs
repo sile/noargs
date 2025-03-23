@@ -7,7 +7,7 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OptSpec {
-    pub name: &'static str, // TODO: Option?
+    pub name: &'static str,
     pub short: Option<char>,
     pub ty: &'static str,
     pub doc: &'static str,
