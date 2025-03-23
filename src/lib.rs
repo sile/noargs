@@ -4,7 +4,7 @@ mod cmd;
 mod error;
 mod flag;
 mod formatter;
-pub mod help;
+mod help;
 mod opt;
 
 pub use self::arg::{Arg, ArgSpec};
@@ -20,3 +20,5 @@ pub use self::opt::{Opt, OptSpec};
 pub fn args() -> Args {
     Args::new(std::env::args())
 }
+
+// TODO: arg, opt, flag, cmd

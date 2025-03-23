@@ -1,6 +1,6 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, io::IsTerminal};
 
-use crate::{arg::Arg, cmd::Cmd, error::Error, flag::Flag, opt::Opt};
+use crate::{arg::Arg, cmd::Cmd, error::Error, flag::Flag, help::HelpBuilder, opt::Opt};
 
 #[derive(Debug)]
 pub struct Args {
@@ -43,7 +43,14 @@ impl Args {
     }
 
     pub fn finish(self) -> Result<Option<String>, Error> {
-        todo!()
+        // TODO: check unexpected args
+        // TODO: check unexpected command
+        if self.metadata.help_mode {
+            let help = HelpBuilder::new(&self, std::io::stdout().is_terminal()).build();
+            Ok(Some(help))
+        } else {
+            Ok(None)
+        }
     }
 
     pub(crate) fn raw_args_mut(&mut self) -> &mut [RawArg] {
