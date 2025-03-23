@@ -10,8 +10,8 @@ use crate::{Arg, Args, Metadata, Opt, args::Taken, formatter::Formatter};
 /// Additionally, any external errors that implement [`std::fmt::Display`] can be converted into this error.
 #[allow(missing_docs)]
 pub enum Error {
-    UnexpectedArg { metadata: Metadata, name: String },
-    UndefinedCommand { metadata: Metadata, name: String },
+    UnexpectedArg { metadata: Metadata, raw_arg: String },
+    UndefinedCommand { metadata: Metadata, raw_arg: String },
     MissingCommand { metadata: Metadata },
     ParseArgError { arg: Box<Arg>, reason: String },
     MissingArg { arg: Box<Arg> },
@@ -28,10 +28,10 @@ impl Error {
         if cmd.is_present() {
             return Ok(());
         }
-        if let Some((_, name)) = args.remaining_args().next() {
+        if let Some((_, raw_arg)) = args.remaining_args().next() {
             Err(Self::UndefinedCommand {
                 metadata: args.metadata(),
-                name: name.to_owned(),
+                raw_arg: raw_arg.to_owned(),
             })
         } else {
             Err(Self::MissingCommand {
@@ -44,7 +44,7 @@ impl Error {
         if let Some(unexpected_arg) = args.next_raw_arg_value() {
             Err(Error::UnexpectedArg {
                 metadata: args.metadata(),
-                name: unexpected_arg.to_owned(),
+                raw_arg: unexpected_arg.to_owned(),
             })
         } else {
             Ok(())
@@ -54,15 +54,11 @@ impl Error {
     fn to_string(&self, is_terminal: bool) -> String {
         let mut fmt = Formatter::new(is_terminal);
         match self {
-            Error::UnexpectedArg {
-                metadata,
-                name: arg,
-            } => {
-                Self::format_unexpected_arg(&mut fmt, *metadata, arg);
+            Error::UnexpectedArg { metadata, raw_arg } => {
+                Self::format_unexpected_arg(&mut fmt, *metadata, raw_arg);
             }
-            #[expect(unused_variables)]
-            Error::UndefinedCommand { metadata, name } => {
-                todo!()
+            Error::UndefinedCommand { metadata, raw_arg } => {
+                Self::format_undefined_command(&mut fmt, *metadata, raw_arg);
             }
             #[expect(unused_variables)]
             Error::MissingCommand { metadata } => {
@@ -87,15 +83,23 @@ impl Error {
         fmt.finish()
     }
 
-    fn format_unexpected_arg(fmt: &mut Formatter, metadata: Metadata, arg: &str) {
-        fmt.write(&format!("unexpected argument '{}' found", fmt.bold(arg)));
+    fn format_unexpected_arg(fmt: &mut Formatter, metadata: Metadata, raw_arg: &str) {
+        fmt.write(&format!(
+            "unexpected argument '{}' found",
+            fmt.bold(raw_arg)
+        ));
+        Self::write_help_line(fmt, metadata);
+    }
+
+    fn format_undefined_command(fmt: &mut Formatter, metadata: Metadata, raw_arg: &str) {
+        fmt.write(&format!("'{}' command is not defined", fmt.bold(raw_arg)));
         Self::write_help_line(fmt, metadata);
     }
 
     fn write_help_line(fmt: &mut Formatter, metadata: Metadata) {
         if let Some(help_flag_name) = metadata.help_flag_name {
             fmt.write(&format!(
-                "\nTry '{}' for more information.",
+                "\n\nTry '{}' for more information.",
                 fmt.bold(&format!("--{help_flag_name}"))
             ));
         }
@@ -116,10 +120,12 @@ impl std::fmt::Debug for Error {
 
 #[cfg(test)]
 mod tests {
+    use crate::cmd;
+
     use super::*;
 
     #[test]
-    fn check_unexpected_arg() {
+    fn unexpected_arg_error() {
         // No error.
         let args = Args::new(["noargs"].iter().map(|a| a.to_string()));
         assert!(Error::check_unexpected_arg(&args).is_ok());
@@ -136,7 +142,18 @@ mod tests {
         assert_eq!(
             e.to_string(false),
             r#"unexpected argument '--foo' found
+
 Try '--help' for more information."#
         );
+    }
+
+    #[test]
+    fn undefined_command_error() {
+        let mut args = Args::new(["noargs", "baz"].iter().map(|a| a.to_string()));
+        args.metadata_mut().help_flag_name = None;
+        cmd("foo").take(&mut args);
+        cmd("bar").take(&mut args);
+        let e = args.finish().expect_err("error");
+        assert_eq!(e.to_string(false), "'baz' command is not defined");
     }
 }
