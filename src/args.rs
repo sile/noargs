@@ -161,6 +161,10 @@ impl Taken {
         }
     }
 
+    pub fn contains_index(&self, index: usize) -> bool {
+        (self.min_index().unwrap_or(0)..=self.max_index().unwrap_or(usize::MAX)).contains(&index)
+    }
+
     pub fn min_index(&self) -> Option<usize> {
         match self {
             Taken::Arg(x) => x.spec().min_index,

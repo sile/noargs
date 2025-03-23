@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, usize};
+use std::{borrow::Cow, collections::HashSet};
 
 use crate::{
     args::{Args, Taken},
@@ -9,8 +9,8 @@ use crate::{
 pub struct HelpBuilder<'a> {
     args: &'a Args,
     log: Vec<Taken>,
-    partial: bool,
     fmt: Formatter,
+    subcommand_name: Option<&'static str>,
 }
 
 impl<'a> HelpBuilder<'a> {
@@ -18,28 +18,35 @@ impl<'a> HelpBuilder<'a> {
         let mut this = Self {
             args,
             log: args.log().to_vec(),
-            partial: false,
             fmt: Formatter::new(is_terminal),
+            subcommand_name: None,
         };
 
-        if this.has_subcommands() {
-            let old_len = this.log.len();
-            if let Some(level) = this
-                .log
-                .iter()
-                .map(|spec| spec.min_index())
-                .max()
-                .unwrap_or_default()
-            {
-                this.log.retain(|spec| {
-                    (spec.min_index().unwrap_or(0)..=spec.max_index().unwrap_or(usize::MAX))
-                        .contains(&level)
-                });
+        // Subcommand handling.
+        let Some((name, log_index, arg_index)) =
+            this.log.iter().enumerate().rev().find_map(|(i, entry)| {
+                if let Taken::Subcommand(cmd) = entry {
+                    cmd.index().map(|arg_index| (cmd.spec().name, i, arg_index))
+                } else {
+                    None
+                }
+            })
+        else {
+            return this;
+        };
+        this.subcommand_name = Some(name);
+
+        let mut log = Vec::new();
+        for (i, entry) in this.log.into_iter().enumerate() {
+            let mut retain = entry.contains_index(arg_index + 1);
+            if retain && matches!(entry, Taken::Arg(_) | Taken::Subcommand(_)) {
+                retain = i > log_index;
             }
-            if old_len != this.log.len() {
-                this.partial = true;
+            if retain {
+                log.push(entry);
             }
         }
+        this.log = log;
 
         this
     }
@@ -69,8 +76,8 @@ impl<'a> HelpBuilder<'a> {
             self.fmt.bold(self.args.metadata().app_name),
         ));
 
-        if self.partial {
-            self.fmt.write(" ...");
+        if let Some(name) = self.subcommand_name {
+            self.fmt.write(&format!(" ... {name}"));
         }
 
         // TODO: subcommand
@@ -130,6 +137,9 @@ impl<'a> HelpBuilder<'a> {
         self.fmt.write(&self.fmt.bold_underline("Example:\n"));
         self.fmt
             .write(&format!("  $ {}", self.args.metadata().app_name));
+        if let Some(name) = self.subcommand_name {
+            self.fmt.write(&format!(" ... {name}"));
+        }
         for entry in &self.log {
             match entry {
                 Taken::Arg(arg) => {
@@ -480,6 +490,7 @@ Options:
         let mut args = args(&["noargs", "get"]);
         args.metadata_mut().app_description = "";
         FlagSpec::HELP.take(&mut args);
+        // TODO: Add required arg
         SubcommandSpec {
             name: "put",
             doc: "Put an entry",
@@ -492,9 +503,17 @@ Options:
             ..Default::default()
         }
         .take(&mut args);
+        FlagSpec {
+            name: "foo",
+            doc: "should not included",
+            max_index: cmd.index(),
+            ..Default::default()
+        }
+        .take(&mut args);
         ArgSpec {
             name: "KEY",
-            example: Some("foo"),
+            doc: "A key string",
+            example: Some("hi"),
             min_index: cmd.index(),
             ..Default::default()
         }
@@ -504,13 +523,14 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: noargs [OPTIONS] <COMMAND>
+            r#"Usage: noargs ... get [OPTIONS] <KEY>
 
-Commands:
-  put:
-    Put an entry
-  get:
-    Get an entry
+Example:
+  $ noargs ... get hi
+
+Arguments:
+  <KEY>:
+    A key string
 
 Options:
   --help, -h:
