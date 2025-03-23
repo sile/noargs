@@ -211,7 +211,9 @@ impl OptSpec {
                 }
             }
 
-            if let Some(value) = self
+            if let Some(opt) = pending {
+                opt
+            } else if let Some(value) = self
                 .env
                 .and_then(|name| std::env::var(name).ok())
                 .filter(|v| !v.is_empty())

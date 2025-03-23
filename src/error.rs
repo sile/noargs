@@ -81,9 +81,13 @@ impl Error {
                     return fmt.finish();
                 }
             }
-            #[expect(unused_variables)]
             Error::MissingArg { arg } => {
-                todo!()
+                fmt.write(&format!("missing argument '{}'", fmt.bold(arg.spec().name)));
+                if let Some(metadata) = arg.metadata() {
+                    metadata
+                } else {
+                    return fmt.finish();
+                }
             }
             Error::ParseOptError { opt, reason } => {
                 let name = match &**opt {
@@ -102,10 +106,7 @@ impl Error {
                         fmt.bold(name),
                         fmt.bold(&format!("--{}", opt.spec().name))
                     ),
-                    _ => format!(
-                        "argument '{}'",
-                        fmt.bold(&format!(" --{}", opt.spec().name))
-                    ),
+                    _ => format!("argument '{}'", fmt.bold(&format!("--{}", opt.spec().name))),
                 };
                 fmt.write(&format!(
                     "{name} has an invalid value {:?}: {reason}",
@@ -117,8 +118,21 @@ impl Error {
                     return fmt.finish();
                 }
             }
-            #[expect(unused_variables)]
-            Error::MissingOpt { opt } => todo!(),
+            Error::MissingOpt { opt } => {
+                let name = match &**opt {
+                    Opt::Short {
+                        spec: OptSpec { short: Some(c), .. },
+                        ..
+                    } => fmt.bold(&format!("-{c}")).into_owned(),
+                    _ => fmt.bold(&format!("--{}", opt.spec().name)).into_owned(),
+                };
+                fmt.write(&format!("missing '{name}' value"));
+                if let Some(metadata) = opt.metadata() {
+                    metadata
+                } else {
+                    return fmt.finish();
+                }
+            }
             Error::Other(e) => {
                 fmt.write(&e.to_string());
                 return fmt.finish();
@@ -226,5 +240,28 @@ Try '--help' for more information."#
             e.to_string(false),
             r#"argument '-f' has an invalid value "bar": invalid digit found in string"#
         );
+    }
+
+    #[test]
+    fn missing_arg_error() {
+        let mut args = Args::new(["noargs"].iter().map(|a| a.to_string()));
+        args.metadata_mut().help_flag_name = None;
+        let e = arg("INTEGER")
+            .take(&mut args)
+            .parse::<usize>()
+            .expect_err("error");
+        assert_eq!(e.to_string(false), "missing argument 'INTEGER'");
+    }
+
+    #[test]
+    fn missing_opt_error() {
+        let mut args = Args::new(["noargs", "-f"].iter().map(|a| a.to_string()));
+        args.metadata_mut().help_flag_name = None;
+        let e = opt("foo")
+            .short('f')
+            .take(&mut args)
+            .parse::<usize>()
+            .expect_err("error");
+        assert_eq!(e.to_string(false), "missing '-f' value");
     }
 }
