@@ -36,6 +36,16 @@ impl OptSpec {
     pub fn take(mut self, args: &mut Args) -> Opt {
         self.metadata = args.metadata();
         args.with_record_opt(|args| {
+            if args.metadata().help_mode {
+                return if self.default.is_some() {
+                    Opt::Default { spec: self }
+                } else if self.example.is_some() {
+                    Opt::Example { spec: self }
+                } else {
+                    Opt::None { spec: self }
+                };
+            }
+
             let mut pending = None;
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
                 if let Some(mut pending) = pending.take() {
@@ -262,7 +272,6 @@ mod tests {
 
         let mut opt = opt("bar");
         opt.example = Some("3");
-        assert!(matches!(opt.take(&mut args), Opt::Long { index: 2, .. }));
         assert!(matches!(opt.take(&mut args), Opt::Example { .. }));
         assert!(matches!(opt.take(&mut args), Opt::Example { .. }));
     }

@@ -30,6 +30,16 @@ impl ArgSpec {
     pub fn take(mut self, args: &mut Args) -> Arg {
         self.metadata = args.metadata();
         args.with_record_arg(|args| {
+            if args.metadata().help_mode {
+                return if self.default.is_some() {
+                    Arg::Default { spec: self }
+                } else if self.example.is_some() {
+                    Arg::Example { spec: self }
+                } else {
+                    Arg::None { spec: self }
+                };
+            }
+
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
                 if let Some(value) = raw_arg.value.take() {
                     return Arg::Positional {
@@ -42,8 +52,6 @@ impl ArgSpec {
 
             if self.default.is_some() {
                 Arg::Default { spec: self }
-            } else if self.example.is_some() && args.metadata().help_mode {
-                Arg::Example { spec: self }
             } else {
                 Arg::None { spec: self }
             }
@@ -176,10 +184,6 @@ mod tests {
 
         let mut arg = arg("ARG");
         arg.example = Some("bar");
-        assert!(matches!(
-            arg.take(&mut args),
-            Arg::Positional { index: 1, .. }
-        ));
         assert!(matches!(arg.take(&mut args), Arg::Example { .. }));
         assert!(matches!(arg.take(&mut args), Arg::Example { .. }));
     }
