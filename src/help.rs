@@ -10,7 +10,7 @@ pub struct HelpBuilder<'a> {
     args: &'a Args,
     log: Vec<Taken>,
     fmt: Formatter,
-    subcommand_name: Option<&'static str>,
+    cmd_name: Option<&'static str>,
 }
 
 impl<'a> HelpBuilder<'a> {
@@ -19,13 +19,13 @@ impl<'a> HelpBuilder<'a> {
             args,
             log: args.log().to_vec(),
             fmt: Formatter::new(is_terminal),
-            subcommand_name: None,
+            cmd_name: None,
         };
 
         // Subcommand handling.
         let Some((name, log_index, arg_index)) =
             this.log.iter().enumerate().rev().find_map(|(i, entry)| {
-                if let Taken::Subcommand(cmd) = entry {
+                if let Taken::Cmd(cmd) = entry {
                     cmd.index().map(|arg_index| (cmd.spec().name, i, arg_index))
                 } else {
                     None
@@ -34,12 +34,12 @@ impl<'a> HelpBuilder<'a> {
         else {
             return this;
         };
-        this.subcommand_name = Some(name);
+        this.cmd_name = Some(name);
 
         let mut log = Vec::new();
         for (i, entry) in this.log.into_iter().enumerate() {
             let mut retain = entry.contains_index(arg_index + 1);
-            if retain && matches!(entry, Taken::Arg(_) | Taken::Subcommand(_)) {
+            if retain && matches!(entry, Taken::Arg(_) | Taken::Cmd(_)) {
                 retain = i > log_index;
             }
             if retain {
@@ -76,11 +76,9 @@ impl<'a> HelpBuilder<'a> {
             self.fmt.bold(self.args.metadata().app_name),
         ));
 
-        if let Some(name) = self.subcommand_name {
+        if let Some(name) = self.cmd_name {
             self.fmt.write(&format!(" ... {name}"));
         }
-
-        // TODO: subcommand
 
         // Required options.
         for entry in &self.log {
@@ -155,7 +153,7 @@ impl<'a> HelpBuilder<'a> {
         self.fmt.write(&self.fmt.bold_underline("Commands:\n"));
 
         for entry in &self.log {
-            let Taken::Subcommand(cmd) = entry else {
+            let Taken::Cmd(cmd) = entry else {
                 continue;
             };
             let cmd = cmd.spec();
@@ -265,16 +263,14 @@ impl<'a> HelpBuilder<'a> {
     }
 
     fn has_subcommands(&self) -> bool {
-        self.log
-            .iter()
-            .any(|entry| matches!(entry, Taken::Subcommand(_)))
+        self.log.iter().any(|entry| matches!(entry, Taken::Cmd(_)))
     }
 
     fn has_options(&self, include_requried: bool) -> bool {
         self.log.iter().any(|entry| match entry {
             Taken::Opt(opt) => include_requried || opt.spec().example.is_none(),
             Taken::Flag(_) => true,
-            Taken::Arg(_) | Taken::Subcommand(_) => false,
+            Taken::Arg(_) | Taken::Cmd(_) => false,
         })
     }
 
@@ -289,7 +285,7 @@ impl<'a> HelpBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{arg::ArgSpec, flag::FlagSpec, opt::OptSpec, subcommand::SubcommandSpec};
+    use crate::{arg::ArgSpec, cmd::CmdSpec, flag::FlagSpec, opt::OptSpec};
 
     use super::*;
 
@@ -442,13 +438,13 @@ Options:
         let mut args = args(&["noargs"]);
         args.metadata_mut().app_description = "";
         FlagSpec::HELP.take(&mut args);
-        SubcommandSpec {
+        CmdSpec {
             name: "put",
             doc: "Put an entry",
             ..Default::default()
         }
         .take(&mut args);
-        SubcommandSpec {
+        CmdSpec {
             name: "get",
             doc: "Get an entry",
             ..Default::default()
@@ -479,13 +475,13 @@ Options:
         let mut args = args(&["noargs", "get"]);
         args.metadata_mut().app_description = "";
         FlagSpec::HELP.take(&mut args);
-        SubcommandSpec {
+        CmdSpec {
             name: "put",
             doc: "Put an entry",
             ..Default::default()
         }
         .take(&mut args);
-        let cmd = SubcommandSpec {
+        let cmd = CmdSpec {
             name: "get",
             doc: "Get an entry",
             ..Default::default()

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{arg::Arg, error::Error, flag::Flag, opt::Opt, subcommand::Subcommand};
+use crate::{arg::Arg, cmd::Cmd, error::Error, flag::Flag, opt::Opt};
 
 #[derive(Debug)]
 pub struct Args {
@@ -25,10 +25,6 @@ impl Args {
             raw_args,
             log: Vec::new(),
         }
-    }
-
-    pub fn with_env_args() -> Self {
-        Self::new(std::env::args())
     }
 
     pub fn metadata(&self) -> Metadata {
@@ -97,13 +93,13 @@ impl Args {
         flag
     }
 
-    pub(crate) fn with_record_subcommand<F>(&mut self, f: F) -> Subcommand
+    pub(crate) fn with_record_cmd<F>(&mut self, f: F) -> Cmd
     where
-        F: FnOnce(&mut Self) -> Subcommand,
+        F: FnOnce(&mut Self) -> Cmd,
     {
-        let subcommand = f(self);
-        self.log.push(Taken::Subcommand(subcommand));
-        subcommand
+        let cmd = f(self);
+        self.log.push(Taken::Cmd(cmd));
+        cmd
     }
 
     pub(crate) fn next_raw_arg_value(&self) -> Option<&str> {
@@ -150,7 +146,7 @@ pub enum Taken {
     Arg(Arg),
     Opt(Opt),
     Flag(Flag),
-    Subcommand(Subcommand),
+    Cmd(Cmd),
 }
 
 impl Taken {
@@ -159,7 +155,7 @@ impl Taken {
             Taken::Arg(arg) => arg.spec().name,
             Taken::Opt(opt) => opt.spec().name,
             Taken::Flag(flag) => flag.spec().name,
-            Taken::Subcommand(subcommand) => subcommand.spec().name,
+            Taken::Cmd(cmd) => cmd.spec().name,
         }
     }
 
@@ -170,7 +166,7 @@ impl Taken {
                 .spec()
                 .example
                 .map(|v| Cow::Owned(format!("--{} {v}", opt.spec().name))),
-            Taken::Subcommand(cmd) if cmd.is_present() => Some(Cow::Borrowed(cmd.spec().name)),
+            Taken::Cmd(cmd) if cmd.is_present() => Some(Cow::Borrowed(cmd.spec().name)),
             _ => None,
         }
     }
@@ -184,7 +180,7 @@ impl Taken {
             Taken::Arg(x) => x.spec().min_index,
             Taken::Opt(x) => x.spec().min_index,
             Taken::Flag(x) => x.spec().min_index,
-            Taken::Subcommand(x) => x.spec().min_index,
+            Taken::Cmd(x) => x.spec().min_index,
         }
     }
 
@@ -193,7 +189,7 @@ impl Taken {
             Taken::Arg(x) => x.spec().max_index,
             Taken::Opt(x) => x.spec().max_index,
             Taken::Flag(x) => x.spec().max_index,
-            Taken::Subcommand(x) => x.spec().max_index,
+            Taken::Cmd(x) => x.spec().max_index,
         }
     }
 }

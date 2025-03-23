@@ -1,8 +1,7 @@
 use crate::args::{Args, Metadata};
 
-// TODO: s/SubcommandSpec/CmdSpec/
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SubcommandSpec {
+pub struct CmdSpec {
     pub name: &'static str,
     pub doc: &'static str,
     pub min_index: Option<usize>,
@@ -10,7 +9,7 @@ pub struct SubcommandSpec {
     pub metadata: Metadata,
 }
 
-impl SubcommandSpec {
+impl CmdSpec {
     pub const DEFAULT: Self = Self {
         name: "",
         doc: "",
@@ -19,9 +18,9 @@ impl SubcommandSpec {
         metadata: Metadata::DEFAULT,
     };
 
-    pub fn take(mut self, args: &mut Args) -> Subcommand {
+    pub fn take(mut self, args: &mut Args) -> Cmd {
         self.metadata = args.metadata();
-        args.with_record_subcommand(|args| {
+        args.with_record_cmd(|args| {
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
                 let Some(value) = &raw_arg.value else {
                     continue;
@@ -29,31 +28,31 @@ impl SubcommandSpec {
 
                 if value == self.name {
                     raw_arg.value = None;
-                    return Subcommand::Some { spec: self, index };
+                    return Cmd::Some { spec: self, index };
                 }
             }
 
-            Subcommand::None { spec: self }
+            Cmd::None { spec: self }
         })
     }
 }
 
-impl Default for SubcommandSpec {
+impl Default for CmdSpec {
     fn default() -> Self {
         Self::DEFAULT
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Subcommand {
-    Some { spec: SubcommandSpec, index: usize },
-    None { spec: SubcommandSpec },
+pub enum Cmd {
+    Some { spec: CmdSpec, index: usize },
+    None { spec: CmdSpec },
 }
 
-impl Subcommand {
-    pub fn spec(self) -> SubcommandSpec {
+impl Cmd {
+    pub fn spec(self) -> CmdSpec {
         match self {
-            Subcommand::Some { spec, .. } | Subcommand::None { spec } => spec,
+            Cmd::Some { spec, .. } | Cmd::None { spec } => spec,
         }
     }
 
@@ -81,11 +80,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn subcommand_and_flag() {
+    fn cmd_and_flag() {
         let mut args = args(&["test", "--foo", "run", "--foo"]);
-        if let Some(_cmd) = subcommand("bar").take(&mut args).ok() {
+        if let Some(_cmd) = cmd("bar").take(&mut args).ok() {
             panic!();
-        } else if let Some(cmd) = subcommand("run").take(&mut args).ok() {
+        } else if let Some(cmd) = cmd("run").take(&mut args).ok() {
             let flag = FlagSpec {
                 name: "foo",
                 min_index: cmd.index(),
@@ -102,8 +101,8 @@ mod tests {
         Args::new(raw_args.iter().map(|a| a.to_string()))
     }
 
-    fn subcommand(name: &'static str) -> SubcommandSpec {
-        SubcommandSpec {
+    fn cmd(name: &'static str) -> CmdSpec {
+        CmdSpec {
             name,
             ..Default::default()
         }
