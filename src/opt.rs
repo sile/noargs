@@ -1,24 +1,48 @@
-use std::str::FromStr;
-
 use crate::{
     args::{Args, Metadata},
     error::Error,
 };
 
+/// Specification for [`Opt`].
+///
+/// Note that `noargs` does not support options with only short names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OptSpec {
+    /// Option long name (usually kebab-case).
     pub name: &'static str,
+
+    /// Option short name.
     pub short: Option<char>,
+
+    /// Value type.
     pub ty: &'static str,
+
+    /// Documentation.
     pub doc: &'static str,
+
+    /// Environment variable name.
+    ///
+    /// If a non-empty value is set for this environment variable,
+    /// it will be used as the value of this option when the option is not specified in [`Args`].
     pub env: Option<&'static str>,
+
+    /// Default value.
     pub default: Option<&'static str>,
+
+    /// Example value (if this is set, the option is considered to be requried when generating the help text).
+    ///
+    /// This is only used if `Args::metadata().help_mode` is `true`.
     pub example: Option<&'static str>,
+
+    /// Minimum index that [`Opt::index()`] can have.
     pub min_index: Option<usize>,
+
+    /// Maximum index that [`Opt::index()`] can have.
     pub max_index: Option<usize>,
 }
 
 impl OptSpec {
+    /// The default specification.
     pub const DEFAULT: Self = Self {
         name: "",
         short: None,
@@ -31,6 +55,63 @@ impl OptSpec {
         max_index: None,
     };
 
+    /// Makes an [`OptSpec`] instance with a specified name (equivalent to `noargs::opt(name)`).
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            ..Self::DEFAULT
+        }
+    }
+
+    /// Updates the value of [`OptSpec::short`].
+    pub const fn short(mut self, name: char) -> Self {
+        self.short = Some(name);
+        self
+    }
+
+    /// Updates the value of [`OptSpec::ty`].
+    pub const fn ty(mut self, value_type: &'static str) -> Self {
+        self.ty = value_type;
+        self
+    }
+
+    /// Updates the value of [`OptSpec::doc`].
+    pub const fn doc(mut self, doc: &'static str) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    /// Updates the value of [`OptSpec::env`].
+    pub const fn env(mut self, variable_name: &'static str) -> Self {
+        self.env = Some(variable_name);
+        self
+    }
+
+    /// Updates the value of [`OptSpec::default`].
+    pub const fn default(mut self, default: &'static str) -> Self {
+        self.default = Some(default);
+        self
+    }
+
+    /// Updates the value of [`OptSpec::example`].
+    pub const fn example(mut self, example: &'static str) -> Self {
+        self.example = Some(example);
+        self
+    }
+
+    /// Updates the value of [`OptSpec::min_index`].
+    pub const fn min_index(mut self, index: Option<usize>) -> Self {
+        self.min_index = index;
+        self
+    }
+
+    /// Updates the value of [`OptSpec::max_index`].
+    pub const fn max_index(mut self, index: Option<usize>) -> Self {
+        self.max_index = index;
+        self
+    }
+
+    /// Takes the first [`Opt`] instance that satisfies this specification from the raw arguments.
     pub fn take(self, args: &mut Args) -> Opt {
         let metadata = args.metadata();
         args.with_record_opt(|args| {
@@ -163,7 +244,9 @@ impl Default for OptSpec {
     }
 }
 
+/// A named argument with value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[allow(missing_docs)]
 pub enum Opt {
     Long {
         spec: OptSpec,
@@ -196,9 +279,10 @@ pub enum Opt {
 }
 
 impl Opt {
+    /// Parse the value of this option.
     pub fn parse<T>(&self) -> Result<T, Error>
     where
-        T: FromStr,
+        T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
         let value = self.raw_value().ok_or_else(|| Error::MissingOpt {
@@ -210,14 +294,16 @@ impl Opt {
         })
     }
 
+    /// Parse the value of this option if it is present.
     pub fn parse_if_present<T>(&self) -> Result<Option<T>, Error>
     where
-        T: FromStr,
+        T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
         self.is_present().then(|| self.parse()).transpose()
     }
 
+    /// Similar to [`Opt::parse()`], but more flexible as this method allows you to specify an arbitrary parsing function.
     pub fn parse_with<F, T>(&self, f: F) -> Result<T, Error>
     where
         F: FnOnce(&Self) -> Result<T, Error>,
@@ -225,6 +311,7 @@ impl Opt {
         f(self)
     }
 
+    /// Returns the specification of this option.
     pub fn spec(&self) -> OptSpec {
         match self {
             Opt::Long { spec, .. }
@@ -236,10 +323,12 @@ impl Opt {
         }
     }
 
+    /// Returns `true` if this option has a value.
     pub fn is_present(&self) -> bool {
         !matches!(self, Opt::None { .. })
     }
 
+    /// Returns the raw value of this option.
     pub fn raw_value(&self) -> Option<&str> {
         match self {
             Opt::Long { raw_value, .. } | Opt::Short { raw_value, .. } => {
@@ -252,6 +341,7 @@ impl Opt {
         }
     }
 
+    /// Returns the index at which the raw value associated with the name of this option was located in [`Args`].
     pub fn index(&self) -> Option<usize> {
         if let Opt::Long { index, .. } | Opt::Short { index, .. } = self {
             Some(*index)

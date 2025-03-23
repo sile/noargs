@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::{
     args::{Args, Metadata},
     error::Error,
@@ -17,7 +15,7 @@ pub struct ArgSpec {
     /// Default value.
     pub default: Option<&'static str>,
 
-    /// Example value (if this is set, the argument is considered to be requried).
+    /// Example value (if this is set, the argument is considered to be requried when generating the help text).
     ///
     /// This is only used if `Args::metadata().help_mode` is `true`.
     pub example: Option<&'static str>,
@@ -154,7 +152,7 @@ impl Arg {
     /// Parse the value of this argument.
     pub fn parse<T>(&self) -> Result<T, Error>
     where
-        T: FromStr,
+        T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
         let value = self.raw_value().ok_or_else(|| Error::MissingArg {
@@ -169,7 +167,7 @@ impl Arg {
     /// Parse the value of this argument if it is present.
     pub fn parse_if_present<T>(&self) -> Result<Option<T>, Error>
     where
-        T: FromStr,
+        T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
         self.is_present().then(|| self.parse()).transpose()

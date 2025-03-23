@@ -37,7 +37,7 @@ impl FlagSpec {
         max_index: None,
     };
 
-    /// Makes an [`ArgSpec`] instance with a specified name (equivalent to `noargs::arg(name)`).
+    /// Makes an [`FlagSpec`] instance with a specified name (equivalent to `noargs::flag(name)`).
     pub const fn new(name: &'static str) -> Self {
         Self {
             name,

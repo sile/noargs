@@ -43,10 +43,7 @@ pub const fn arg(name: &'static str) -> ArgSpec {
 
 /// Makes an [`OptSpec`] instance with a specified name.
 pub const fn opt(name: &'static str) -> OptSpec {
-    OptSpec {
-        name,
-        ..OptSpec::DEFAULT
-    }
+    OptSpec::new(name)
 }
 
 /// Makes a [`FlagSpec`] instance with a specified name.
