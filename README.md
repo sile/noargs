@@ -6,7 +6,7 @@ noargs
 [![Actions Status](https://github.com/sile/noargs/workflows/CI/badge.svg)](https://github.com/sile/noargs/actions)
 ![License](https://img.shields.io/crates/l/noargs)
 
-`noargs` is an imperative command-line argument parser library with no dependencies, no macros, and no implicit I/O.
+`noargs` is an imperative command-line argument parser library for Rust with no dependencies, no macros, and no implicit I/O.
 
 Features
 --------
