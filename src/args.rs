@@ -1,7 +1,10 @@
 use std::{borrow::Cow, io::IsTerminal};
 
-use crate::{arg::Arg, cmd::Cmd, error::Error, flag::Flag, help::HelpBuilder, opt::Opt};
+use crate::{Arg, Cmd, Error, Flag, Opt, help::HelpBuilder};
+#[expect(unused_imports)]
+use crate::{ArgSpec, OptSpec};
 
+/// Raw arguments that will be converted into [`Arg`], [`Opt`], [`Flag`] and [`Cmd`] instances.
 #[derive(Debug)]
 pub struct Args {
     metadata: Metadata,
@@ -10,6 +13,7 @@ pub struct Args {
 }
 
 impl Args {
+    /// Makes an [`Args`] instance with the given raw arguments.
     pub fn new<I>(args: I) -> Self
     where
         I: Iterator<Item = String>,
@@ -27,14 +31,17 @@ impl Args {
         }
     }
 
+    /// Returns the metadata.
     pub fn metadata(&self) -> Metadata {
         self.metadata
     }
 
+    /// Returns a mutable reference of the metadata.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
     }
 
+    /// Returns an iterator that iterates over unconsumed (not taken) raw arguments and their indices.
     pub fn remaining_args(&self) -> impl '_ + Iterator<Item = (usize, &str)> {
         self.raw_args
             .iter()
@@ -42,6 +49,9 @@ impl Args {
             .filter_map(|(i, a)| a.value.as_ref().map(|v| (i, v.as_str())))
     }
 
+    /// Completes the parsing process and checks for any errors.
+    ///
+    /// If successful and [`Metadata::help_mode`] is `true`, this method returns `Ok(Some(help_text))`.
     pub fn finish(self) -> Result<Option<String>, Error> {
         if self.metadata.help_mode {
             let help = HelpBuilder::new(&self, std::io::stdout().is_terminal()).build();
@@ -119,22 +129,34 @@ pub struct RawArg {
     pub value: Option<String>,
 }
 
+/// Metadata of [`Args`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Metadata {
+    /// Application name (default: `env!("CARGO_PKG_NAME")`).
     pub app_name: &'static str,
+
+    /// Application description (default: `env!("CARGO_PKG_DESCRIPTION")`).
     pub app_description: &'static str,
+
+    /// Flag name for help (default: `Some("help")`).
     pub help_flag_name: Option<&'static str>,
+
+    /// When enabled, the following help mode behaviors apply:
+    ///
+    /// - [`Args::finish()`] will return `Ok(Some(help_text))` if successful
+    /// - Only default and example values will be used when calling [`ArgSpec::take()`] or [`OptSpec::take()`]
     pub help_mode: bool,
 }
 
 impl Metadata {
-    pub const DEFAULT: Self = Self {
+    pub(crate) const DEFAULT: Self = Self {
         app_name: env!("CARGO_PKG_NAME"),
         app_description: env!("CARGO_PKG_DESCRIPTION"),
         help_flag_name: Some("help"),
         help_mode: false,
     };
 
+    /// Shorthand for `format!("{} {}", self.app_name, env!("CARGO_PKG_VERSION"))`.
     pub fn version_line(self) -> String {
         format!("{} {}", self.app_name, env!("CARGO_PKG_VERSION"))
     }
