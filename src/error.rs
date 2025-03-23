@@ -2,6 +2,13 @@ use std::io::IsTerminal;
 
 use crate::{Arg, Args, Metadata, Opt, args::Taken, formatter::Formatter};
 
+/// Possible errors.
+///
+/// Note that this enum is intended to be used only as a top-level error and
+/// deliberately does not implement the [`std::error::Error`] and [`std::fmt::Display`] traits.
+///
+/// Additionally, any external errors that implement [`std::fmt::Display`] can be converted into this error.
+#[allow(missing_docs)]
 pub enum Error {
     UnexpectedArg { metadata: Metadata, name: String },
     UndefinedCommand { metadata: Metadata, name: String },
