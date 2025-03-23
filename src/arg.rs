@@ -89,11 +89,11 @@ impl Arg {
         T: FromStr,
         T::Err: std::fmt::Display,
     {
-        let value = self
-            .raw_value()
-            .ok_or_else(|| Error::MissingArg { arg: self.clone() })?;
+        let value = self.raw_value().ok_or_else(|| Error::MissingArg {
+            arg: Box::new(self.clone()),
+        })?;
         value.parse::<T>().map_err(|e| Error::ParseArgError {
-            arg: self.clone(),
+            arg: Box::new(self.clone()),
             reason: e.to_string(),
         })
     }

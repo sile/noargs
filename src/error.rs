@@ -6,10 +6,10 @@ pub enum Error {
     UnexpectedArg { metadata: Metadata, name: String },
     UndefinedCommand { metadata: Metadata, name: String },
     MissingCommand { metadata: Metadata },
-    ParseArgError { arg: Arg, reason: String },
-    MissingArg { arg: Arg },
-    ParseOptError { opt: Opt, reason: String },
-    MissingOpt { opt: Opt },
+    ParseArgError { arg: Box<Arg>, reason: String },
+    MissingArg { arg: Box<Arg> },
+    ParseOptError { opt: Box<Opt>, reason: String },
+    MissingOpt { opt: Box<Opt> },
     Other(Box<dyn std::fmt::Display>),
 }
 

@@ -68,12 +68,12 @@ impl OptSpec {
                     continue;
                 }
 
-                if value.starts_with("--") {
+                if let Some(value) = value.strip_prefix("--") {
                     // Long name option.
-                    if !value[2..].starts_with(self.name) {
+                    let Some(value) = value.strip_prefix(self.name) else {
                         continue;
-                    }
-                    match value[2 + self.name.len()..].chars().next() {
+                    };
+                    match value.chars().next() {
                         None => {
                             raw_arg.value = None;
                             pending = Some(Opt::Long {
@@ -83,7 +83,7 @@ impl OptSpec {
                             });
                         }
                         Some('=') => {
-                            let opt_value = value[2 + self.name.len() + 1..].to_owned();
+                            let opt_value = value[1..].to_owned();
                             raw_arg.value = None;
                             return Opt::Long {
                                 spec: self,
@@ -181,11 +181,11 @@ impl Opt {
         T: FromStr,
         T::Err: std::fmt::Display,
     {
-        let value = self
-            .raw_value()
-            .ok_or_else(|| Error::MissingOpt { opt: self.clone() })?;
+        let value = self.raw_value().ok_or_else(|| Error::MissingOpt {
+            opt: Box::new(self.clone()),
+        })?;
         value.parse::<T>().map_err(|e| Error::ParseOptError {
-            opt: self.clone(),
+            opt: Box::new(self.clone()),
             reason: e.to_string(),
         })
     }

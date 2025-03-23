@@ -110,9 +110,7 @@ impl Args {
     }
 
     pub(crate) fn next_raw_arg_value(&self) -> Option<&str> {
-        self.raw_args
-            .iter()
-            .find_map(|a| a.value.as_ref().map(|s| s.as_str()))
+        self.raw_args.iter().find_map(|a| a.value.as_deref())
     }
 }
 
