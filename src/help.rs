@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     arg::ArgSpec,
     args::{Args, Spec},
@@ -26,7 +28,8 @@ impl<'a> HelpBuilder<'a> {
         self.build_description();
         self.build_usage();
         self.build_example();
-        // TODO:  arguments, options, commands
+        // TODO:  commands
+        self.build_arguments();
         self.build_options();
         self.fmt.finish()
     }
@@ -62,7 +65,28 @@ impl<'a> HelpBuilder<'a> {
             self.fmt.write(" [OPTIONS]");
         }
 
-        // TODO: and argments, [COMMAND]
+        // Positional arguments.
+        let mut last = None;
+        for &spec in &self.specs {
+            let Spec::Arg(spec) = spec else {
+                continue;
+            };
+
+            if last == Some(spec) {
+                if !self.fmt.text().ends_with("...") {
+                    self.fmt.write("...");
+                }
+            } else if spec.example.is_some() {
+                // Required argument.
+                self.fmt.write(&format!(" <{}>", spec.name));
+            } else {
+                // Optional argument.
+                self.fmt.write(&format!(" [{}]", spec.name));
+            }
+            last = Some(spec);
+        }
+
+        // TODO: [COMMAND]
 
         self.fmt.write("\n\n");
     }
@@ -96,6 +120,42 @@ impl<'a> HelpBuilder<'a> {
         self.fmt.write("\n\n");
     }
 
+    fn build_arguments(&mut self) {
+        if !self.has_positional_args() {
+            return;
+        }
+
+        self.fmt.write(&self.fmt.bold_underline("Arguments:\n"));
+
+        let mut known = HashSet::new();
+        for &spec in &self.specs {
+            let Spec::Arg(spec) = spec else {
+                continue;
+            };
+            if known.contains(&spec) {
+                continue;
+            }
+            known.insert(spec);
+
+            if spec.example.is_some() {
+                self.fmt
+                    .write(&format!("  <{}>\n", self.fmt.bold(spec.name)));
+            } else {
+                self.fmt
+                    .write(&format!("  [{}]\n", self.fmt.bold(spec.name)));
+            }
+
+            for line in spec.doc.lines() {
+                self.fmt.write(&format!("      {line}\n"));
+            }
+            if let Some(default) = spec.default {
+                self.fmt.write(&format!("      [default: {default}]\n"));
+            }
+        }
+
+        self.fmt.write("\n");
+    }
+
     fn build_options(&mut self) {
         if !self.has_options(true) {
             return;
@@ -120,40 +180,40 @@ impl<'a> HelpBuilder<'a> {
 
     fn build_opt(&mut self, spec: OptSpec) {
         let names = if let Some(short) = spec.short {
-            format!("-{short}, --{}", spec.name)
+            format!("--{}, -{short}", spec.name)
         } else {
-            format!("          --{}", spec.name)
+            format!("--{}", spec.name)
         };
         self.fmt
             .write(&format!("  {} <{}>\n", self.fmt.bold(&names), spec.ty));
         for line in spec.doc.lines() {
-            self.fmt.write(&format!("          {line}\n"));
+            self.fmt.write(&format!("      {line}\n"));
         }
         if let Some(env) = spec.env {
-            self.fmt.write(&format!("          [env: {env}]\n"));
+            self.fmt.write(&format!("      [env: {env}]\n"));
         }
         if let Some(default) = spec.default {
-            self.fmt.write(&format!("          [default: {default}]\n"));
+            self.fmt.write(&format!("      [default: {default}]\n"));
         }
     }
 
     fn build_flag(&mut self, spec: FlagSpec) {
         let names = if let Some(short) = spec.short {
-            format!("-{}, --{}", short, spec.name)
+            format!("--{}, -{short}", spec.name)
         } else {
-            format!("    --{}", spec.name)
+            format!("--{}", spec.name)
         };
         self.fmt.write(&format!("  {}\n", self.fmt.bold(&names)));
         for line in spec.doc.lines() {
-            self.fmt.write(&format!("          {line}\n"));
+            self.fmt.write(&format!("      {line}\n"));
         }
         if let Some(env) = spec.env {
-            self.fmt.write(&format!("          [env: {env}]\n"));
+            self.fmt.write(&format!("      [env: {env}]\n"));
         }
     }
 
     fn has_positional_args(&self) -> bool {
-        self.specs.iter().any(|spec| matches!(spec, Spec::Opt(_)))
+        self.specs.iter().any(|spec| matches!(spec, Spec::Arg(_)))
     }
 
     fn has_options(&self, include_requried: bool) -> bool {
@@ -193,10 +253,10 @@ mod tests {
 Usage: noargs [OPTIONS]
 
 Options:
-  -h, --help
-          Print help
-      --version
-          Print version
+  --help, -h
+      Print help
+  --version
+      Print version
 "#
         );
     }
@@ -224,13 +284,13 @@ Options:
             r#"Usage: noargs [OPTIONS]
 
 Options:
-  -h, --help
-          Print help
-  -f, --foo <INTEGER>
-          An integer
-          This is foo
-          [env: FOO_ENV]
-          [default: 10]
+  --help, -h
+      Print help
+  --foo, -f <INTEGER>
+      An integer
+      This is foo
+      [env: FOO_ENV]
+      [default: 10]
 "#
         );
     }
@@ -260,10 +320,10 @@ Example:
   $ noargs --foo 10
 
 Options:
-  -h, --help
-          Print help
-  -f, --foo <INTEGER>
-          An integer
+  --help, -h
+      Print help
+  --foo, -f <INTEGER>
+      An integer
 "#
         );
     }
@@ -274,34 +334,49 @@ Options:
         args.metadata_mut().app_description = "";
         FlagSpec::HELP.take(&mut args);
         ArgSpec {
-            name: "INT-0",
-            doc: "An integer",
+            name: "REQUIRED",
+            doc: "Foo",
             example: Some("3"),
             ..Default::default()
         }
         .take(&mut args);
         ArgSpec {
-            name: "INT-1",
-            doc: "An integer",
-            default: Some("1"),
+            name: "OPTIONAL",
+            doc: "Bar",
+            default: Some("9"),
             ..Default::default()
         }
         .take(&mut args);
+        for _ in 0..3 {
+            ArgSpec {
+                name: "MULTI",
+                doc: "Baz",
+                ..Default::default()
+            }
+            .take(&mut args);
+        }
 
         let help = HelpBuilder::new(&args, false).build();
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: noargs --foo <INTEGER> [OPTIONS]
+            r#"Usage: noargs [OPTIONS] <REQUIRED> [OPTIONAL] [MULTI]...
 
 Example:
-  $ noargs --foo 10
+  $ noargs 3
+
+Arguments:
+  <REQUIRED>
+      Foo
+  [OPTIONAL]
+      Bar
+      [default: 9]
+  [MULTI]
+      Baz
 
 Options:
-  -h, --help
-          Print help
-  -f, --foo <INTEGER>
-          An integer
+  --help, -h
+      Print help
 "#
         );
     }
