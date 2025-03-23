@@ -1,16 +1,33 @@
 use crate::args::Args;
 
+/// Specification for [`Flag`].
+///
+/// Note that `noargs` does not support flags with only short names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FlagSpec {
+    /// Flag long name (usually kebab-case).
     pub name: &'static str,
+
+    /// Flag short name.
     pub short: Option<char>,
+
+    /// Documentation.
     pub doc: &'static str,
+
+    /// Environment variable name.
+    ///
+    /// If a non-empty value is set to this variable, this flag is considered to be set.
     pub env: Option<&'static str>,
+
+    /// Minimum index that [`Flag::index()`] can have.
     pub min_index: Option<usize>,
+
+    /// Maximum index that [`Flag::index()`] can have.
     pub max_index: Option<usize>,
 }
 
 impl FlagSpec {
+    /// The default specification.
     pub const DEFAULT: Self = Self {
         name: "",
         short: None,
@@ -20,25 +37,45 @@ impl FlagSpec {
         max_index: None,
     };
 
-    pub const HELP: Self = Self {
-        name: "help",
-        short: Some('h'),
-        doc: "Print help",
-        ..Self::DEFAULT
-    };
+    /// Makes an [`ArgSpec`] instance with a specified name (equivalent to `noargs::arg(name)`).
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            ..Self::DEFAULT
+        }
+    }
 
-    pub const VERSION: Self = Self {
-        name: "version",
-        doc: "Print version",
-        ..Self::DEFAULT
-    };
+    /// Updates the value of [`FlagSpec::short`].
+    pub const fn short(mut self, name: char) -> Self {
+        self.short = Some(name);
+        self
+    }
 
-    pub const OPTIONS_END: Self = Self {
-        name: "",
-        doc: "Indicates that all arguments following this flag are positional",
-        ..Self::DEFAULT
-    };
+    /// Updates the value of [`FlagSpec::doc`].
+    pub const fn doc(mut self, doc: &'static str) -> Self {
+        self.doc = doc;
+        self
+    }
 
+    /// Updates the value of [`FlagSpec::env`].
+    pub const fn env(mut self, variable_name: &'static str) -> Self {
+        self.env = Some(variable_name);
+        self
+    }
+
+    /// Updates the value of [`FlagSpec::min_index`].
+    pub const fn min_index(mut self, index: Option<usize>) -> Self {
+        self.min_index = index;
+        self
+    }
+
+    /// Updates the value of [`FlagSpec::max_index`].
+    pub const fn max_index(mut self, index: Option<usize>) -> Self {
+        self.max_index = index;
+        self
+    }
+
+    /// Takes the first [`Flag`] instance that satisfies this specification from the raw arguments.
     pub fn take(self, args: &mut Args) -> Flag {
         args.with_record_flag(|args| {
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
@@ -85,7 +122,9 @@ impl Default for FlagSpec {
     }
 }
 
+/// A named argument without value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(missing_docs)]
 pub enum Flag {
     Long { spec: FlagSpec, index: usize },
     Short { spec: FlagSpec, index: usize },
@@ -94,6 +133,7 @@ pub enum Flag {
 }
 
 impl Flag {
+    /// Returns the specification of this flag.
     pub fn spec(self) -> FlagSpec {
         match self {
             Flag::Short { spec, .. }
@@ -103,10 +143,12 @@ impl Flag {
         }
     }
 
+    /// Returns `true` if this flag is set.
     pub fn is_present(self) -> bool {
         !matches!(self, Flag::None { .. })
     }
 
+    /// Returns the index at which the raw value associated with this flag was located in [`Args`].
     pub fn index(self) -> Option<usize> {
         match self {
             Flag::Short { index, .. } | Flag::Long { index, .. } => Some(index),

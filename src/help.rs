@@ -285,7 +285,7 @@ impl<'a> HelpBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{arg::ArgSpec, cmd::CmdSpec, flag::FlagSpec, opt::OptSpec};
+    use crate::{ArgSpec, CmdSpec, FlagSpec, HELP_FLAG, OptSpec, VERSION_FLAG};
 
     use super::*;
 
@@ -293,8 +293,8 @@ mod tests {
     fn flags_help() {
         let mut args = args(&["noargs"]);
         args.metadata_mut().app_description = "Test command";
-        FlagSpec::HELP.take(&mut args);
-        FlagSpec::VERSION.take(&mut args);
+        HELP_FLAG.take(&mut args);
+        VERSION_FLAG.take(&mut args);
 
         let help = HelpBuilder::new(&args, false).build();
         println!("{help}");
@@ -317,7 +317,7 @@ Options:
     fn flags_and_opts_help() {
         let mut args = args(&["noargs"]);
         args.metadata_mut().app_description = "";
-        FlagSpec::HELP.take(&mut args);
+        HELP_FLAG.take(&mut args);
         OptSpec {
             name: "foo",
             short: Some('f'),
@@ -351,7 +351,7 @@ Options:
     fn required_opts_help() {
         let mut args = args(&["noargs"]);
         args.metadata_mut().app_description = "";
-        FlagSpec::HELP.take(&mut args);
+        HELP_FLAG.take(&mut args);
         OptSpec {
             name: "foo",
             short: Some('f'),
@@ -384,7 +384,7 @@ Options:
     fn positional_args_help() {
         let mut args = args(&["noargs"]);
         args.metadata_mut().app_description = "";
-        FlagSpec::HELP.take(&mut args);
+        HELP_FLAG.take(&mut args);
         ArgSpec {
             name: "REQUIRED",
             doc: "Foo",
@@ -437,7 +437,7 @@ Options:
     fn before_subcommands_help() {
         let mut args = args(&["noargs"]);
         args.metadata_mut().app_description = "";
-        FlagSpec::HELP.take(&mut args);
+        HELP_FLAG.take(&mut args);
         CmdSpec {
             name: "put",
             doc: "Put an entry",
@@ -474,7 +474,7 @@ Options:
     fn after_subcommands_help() {
         let mut args = args(&["noargs", "get"]);
         args.metadata_mut().app_description = "";
-        FlagSpec::HELP.take(&mut args);
+        HELP_FLAG.take(&mut args);
         CmdSpec {
             name: "put",
             doc: "Put an entry",

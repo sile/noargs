@@ -51,16 +51,20 @@ pub const fn opt(name: &'static str) -> OptSpec {
 
 /// Makes a [`FlagSpec`] instance with a specified name.
 pub const fn flag(name: &'static str) -> FlagSpec {
-    FlagSpec {
-        name,
-        ..FlagSpec::DEFAULT
-    }
+    FlagSpec::new(name)
 }
 
 /// Makes a [`CmdSpec`] instance with a specified name.
 pub const fn cmd(name: &'static str) -> CmdSpec {
-    CmdSpec {
-        name,
-        ..CmdSpec::DEFAULT
-    }
+    CmdSpec::new(name)
 }
+
+/// Well-known flag (`--help, -h`) for printing help information.
+pub const HELP_FLAG: FlagSpec = flag("help").short('h').doc("Print help");
+
+/// Well-known flag (`--version`) for printing version information.
+pub const VERSION_FLAG: FlagSpec = flag("version").doc("Print version");
+
+/// Well-known flag (`--`) to indicate the end of options (named arguments).
+pub const OPTIONS_END_FLAG: FlagSpec =
+    flag("").doc("Indicates that all arguments following this flag are positional");
