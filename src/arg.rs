@@ -91,10 +91,9 @@ impl Arg {
     {
         let value = self
             .raw_value()
-            .ok_or_else(|| Error::MissingArg { arg: self.spec() })?;
+            .ok_or_else(|| Error::MissingArg { arg: self.clone() })?;
         value.parse::<T>().map_err(|e| Error::ParseArgError {
-            arg: self.spec(),
-            value: value.to_owned(),
+            arg: self.clone(),
             reason: e.to_string(),
         })
     }

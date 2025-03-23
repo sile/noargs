@@ -47,7 +47,7 @@ impl Args {
             let help = HelpBuilder::new(&self, std::io::stdout().is_terminal()).build();
             Ok(Some(help))
         } else {
-            Error::check_undefined_command(&self)?;
+            Error::check_command_error(&self)?;
             Error::check_unexpected_arg(&self)?;
             Ok(None)
         }

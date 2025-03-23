@@ -1,45 +1,43 @@
 use std::io::IsTerminal;
 
-use crate::{
-    arg::ArgSpec,
-    args::{Args, Metadata},
-    formatter::Formatter,
-    opt::Opt,
-};
+use crate::{Arg, Args, Metadata, Opt, args::Taken, formatter::Formatter};
 
 pub enum Error {
-    UnexpectedArg {
-        metadata: Metadata,
-        arg: String,
-    },
-    ParseArgError {
-        arg: ArgSpec, // TODO: Arg
-        value: String,
-        reason: String,
-    },
-    MissingArg {
-        arg: ArgSpec, // TODO: Arg
-    },
-    ParseOptError {
-        opt: Opt,
-        reason: String,
-    },
-    MissingOpt {
-        opt: Opt,
-    },
+    UnexpectedArg { metadata: Metadata, name: String },
+    UndefinedCommand { metadata: Metadata, name: String },
+    MissingCommand { metadata: Metadata },
+    ParseArgError { arg: Arg, reason: String },
+    MissingArg { arg: Arg },
+    ParseOptError { opt: Opt, reason: String },
+    MissingOpt { opt: Opt },
     Other(Box<dyn std::fmt::Display>),
 }
 
 impl Error {
-    pub(crate) fn check_undefined_command(args: &Args) -> Result<(), Error> {
-        todo!()
+    pub(crate) fn check_command_error(args: &Args) -> Result<(), Error> {
+        let Some(Taken::Cmd(cmd)) = args.log().last() else {
+            return Ok(());
+        };
+        if cmd.is_present() {
+            return Ok(());
+        }
+        if let Some((_, name)) = args.remaining_args().next() {
+            Err(Self::UndefinedCommand {
+                metadata: args.metadata(),
+                name: name.to_owned(),
+            })
+        } else {
+            Err(Self::MissingCommand {
+                metadata: args.metadata(),
+            })
+        }
     }
 
     pub(crate) fn check_unexpected_arg(args: &Args) -> Result<(), Error> {
         if let Some(unexpected_arg) = args.next_raw_arg_value() {
             Err(Error::UnexpectedArg {
                 metadata: args.metadata(),
-                arg: unexpected_arg.to_owned(),
+                name: unexpected_arg.to_owned(),
             })
         } else {
             Ok(())
@@ -49,11 +47,22 @@ impl Error {
     fn to_string(&self, is_terminal: bool) -> String {
         let mut fmt = Formatter::new(is_terminal);
         match self {
-            Error::UnexpectedArg { metadata, arg } => {
+            Error::UnexpectedArg {
+                metadata,
+                name: arg,
+            } => {
                 Self::format_unexpected_arg(&mut fmt, *metadata, arg);
             }
             #[expect(unused_variables)]
-            Error::ParseArgError { arg, value, reason } => {
+            Error::UndefinedCommand { metadata, name } => {
+                todo!()
+            }
+            #[expect(unused_variables)]
+            Error::MissingCommand { metadata } => {
+                todo!()
+            }
+            #[expect(unused_variables)]
+            Error::ParseArgError { arg, reason } => {
                 todo!()
             }
             #[expect(unused_variables)]
