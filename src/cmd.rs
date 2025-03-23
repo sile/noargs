@@ -1,15 +1,25 @@
 use crate::args::{Args, Metadata};
 
+/// Specification for [`Cmd`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CmdSpec {
+    /// Subcommand name (usually cebab-case).
     pub name: &'static str,
+
+    /// Documentation.
     pub doc: &'static str,
+
+    /// Minimum index that [`Cmd::index()`] can have.
     pub min_index: Option<usize>,
+
+    /// Maximum index that [`Cmd::index()`] can have.
     pub max_index: Option<usize>,
-    pub metadata: Metadata,
+
+    metadata: Metadata,
 }
 
 impl CmdSpec {
+    /// The default specification.
     pub const DEFAULT: Self = Self {
         name: "",
         doc: "",
@@ -18,6 +28,33 @@ impl CmdSpec {
         metadata: Metadata::DEFAULT,
     };
 
+    /// Makes an [`CmdSpec`] instance with a specified name (equivalent to `noargs::cmd(name)`).
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            ..Self::DEFAULT
+        }
+    }
+
+    /// Updates the value of [`CmdSpec::doc`].
+    pub const fn doc(mut self, doc: &'static str) -> Self {
+        self.doc = doc;
+        self
+    }
+
+    /// Updates the value of [`CmdSpec::min_index`].
+    pub const fn min_index(mut self, index: Option<usize>) -> Self {
+        self.min_index = index;
+        self
+    }
+
+    /// Updates the value of [`CmdSpec::max_index`].
+    pub const fn max_index(mut self, index: Option<usize>) -> Self {
+        self.max_index = index;
+        self
+    }
+
+    /// Takes the first [`Cmd`] instance that satisfies this specification from the raw arguments.
     pub fn take(mut self, args: &mut Args) -> Cmd {
         self.metadata = args.metadata();
         args.with_record_cmd(|args| {
@@ -43,33 +80,39 @@ impl Default for CmdSpec {
     }
 }
 
+/// A subcommand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(missing_docs)]
 pub enum Cmd {
     Some { spec: CmdSpec, index: usize },
     None { spec: CmdSpec },
 }
 
 impl Cmd {
+    /// Returns the specification of this subcommand.
     pub fn spec(self) -> CmdSpec {
         match self {
             Cmd::Some { spec, .. } | Cmd::None { spec } => spec,
         }
     }
 
+    /// Returns `Some(_)` if this subcommand is present.
     pub fn ok(self) -> Option<Self> {
         self.is_present().then_some(self)
     }
 
+    /// Returns `true` if this subcommand is present.
+    pub fn is_present(self) -> bool {
+        matches!(self, Self::Some { .. })
+    }
+
+    /// Returns the index at which the raw value associated with this subcommand was located in [`Args`].
     pub fn index(self) -> Option<usize> {
         if let Self::Some { index, .. } = self {
             Some(index)
         } else {
             None
         }
-    }
-
-    pub fn is_present(self) -> bool {
-        matches!(self, Self::Some { .. })
     }
 }
 

@@ -11,7 +11,7 @@ pub struct ArgSpec {
     /// Value name (usually SCREAMING_SNAKE_CASE).
     pub name: &'static str,
 
-    /// Argument documentation.
+    /// Documentation.
     pub doc: &'static str,
 
     /// Default value.
