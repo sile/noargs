@@ -124,7 +124,7 @@ impl OptSpec {
             }
         } else if self.default.is_some() {
             Opt::Default { spec: self }
-        } else if self.example.is_some() && args.metadata().show_help {
+        } else if self.example.is_some() && args.metadata().enable_example {
             Opt::Example { spec: self }
         } else {
             Opt::None { spec: self }
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn exampel_opt() {
         let mut args = args(&["test", "--foo=1", "--bar=2"]);
-        args.metadata_mut().show_help = true;
+        args.metadata_mut().enable_example = true;
 
         let mut opt = opt("bar");
         opt.example = Some("3");

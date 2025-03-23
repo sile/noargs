@@ -101,7 +101,7 @@ pub struct Metadata {
     pub app_name: &'static str,
     pub app_description: &'static str,
     pub help_flag_name: Option<&'static str>,
-    pub show_help: bool,
+    pub enable_example: bool,
 }
 
 impl Metadata {
@@ -109,7 +109,7 @@ impl Metadata {
         app_name: env!("CARGO_PKG_NAME"),
         app_description: env!("CARGO_PKG_DESCRIPTION"),
         help_flag_name: Some("help"),
-        show_help: false,
+        enable_example: false,
     };
 
     pub fn version_line(self) -> String {
