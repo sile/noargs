@@ -101,7 +101,7 @@ pub struct Metadata {
     pub app_name: &'static str,
     pub app_description: &'static str,
     pub help_flag_name: Option<&'static str>,
-    pub enable_example: bool,
+    pub help_mode: bool,
 }
 
 impl Metadata {
@@ -109,7 +109,7 @@ impl Metadata {
         app_name: env!("CARGO_PKG_NAME"),
         app_description: env!("CARGO_PKG_DESCRIPTION"),
         help_flag_name: Some("help"),
-        enable_example: false,
+        help_mode: false,
     };
 
     pub fn version_line(self) -> String {
@@ -129,4 +129,24 @@ pub enum Spec {
     Opt(OptSpec),
     Flag(FlagSpec),
     Subcommand(SubcommandSpec),
+}
+
+impl Spec {
+    pub fn min_index(self) -> Option<usize> {
+        match self {
+            Spec::Arg(spec) => spec.min_index,
+            Spec::Opt(spec) => spec.min_index,
+            Spec::Flag(spec) => spec.min_index,
+            Spec::Subcommand(spec) => spec.min_index,
+        }
+    }
+
+    pub fn max_index(self) -> Option<usize> {
+        match self {
+            Spec::Arg(spec) => spec.max_index,
+            Spec::Opt(spec) => spec.max_index,
+            Spec::Flag(spec) => spec.max_index,
+            Spec::Subcommand(spec) => spec.max_index,
+        }
+    }
 }

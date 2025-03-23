@@ -43,7 +43,7 @@ impl ArgSpec {
 
         if self.default.is_some() {
             Arg::Default { spec: self }
-        } else if self.example.is_some() && args.metadata().enable_example {
+        } else if self.example.is_some() && args.metadata().help_mode {
             Arg::Example { spec: self }
         } else {
             Arg::None { spec: self }
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn example_arg() {
         let mut args = args(&["test", "foo"]);
-        args.metadata_mut().enable_example = true;
+        args.metadata_mut().help_mode = true;
 
         let mut arg = arg("ARG");
         arg.example = Some("bar");

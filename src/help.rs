@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, usize};
 
 use crate::{
     arg::ArgSpec,
@@ -12,23 +12,46 @@ use crate::{
 pub struct HelpBuilder<'a> {
     args: &'a Args,
     specs: Vec<Spec>,
+    partial: bool,
     fmt: Formatter,
 }
 
 impl<'a> HelpBuilder<'a> {
     pub fn new(args: &'a Args, is_terminal: bool) -> Self {
-        Self {
+        let mut this = Self {
             args,
-            specs: args.log().to_vec(), // TODO: filter
+            specs: args.log().to_vec(),
+            partial: false,
             fmt: Formatter::new(is_terminal),
+        };
+
+        if this.has_subcommands() {
+            let old_len = this.specs.len();
+            if let Some(level) = this
+                .specs
+                .iter()
+                .map(|spec| spec.min_index())
+                .max()
+                .unwrap_or_default()
+            {
+                this.specs.retain(|spec| {
+                    (spec.min_index().unwrap_or(0)..=spec.max_index().unwrap_or(usize::MAX))
+                        .contains(&level)
+                });
+            }
+            if old_len != this.specs.len() {
+                this.partial = true;
+            }
         }
+
+        this
     }
 
     pub fn build(mut self) -> String {
         self.build_description();
         self.build_usage();
         self.build_example();
-        // TODO:  commands
+        self.build_commands();
         self.build_arguments();
         self.build_options();
         self.fmt.finish()
@@ -48,6 +71,12 @@ impl<'a> HelpBuilder<'a> {
             self.fmt.bold_underline("Usage:"),
             self.fmt.bold(self.args.metadata().app_name),
         ));
+
+        if self.partial {
+            self.fmt.write(" ...");
+        }
+
+        // TODO: subcommand
 
         // Required options.
         for spec in &self.specs {
@@ -86,7 +115,10 @@ impl<'a> HelpBuilder<'a> {
             last = Some(spec);
         }
 
-        // TODO: [COMMAND]
+        // Subcommands.
+        if self.has_subcommands() {
+            self.fmt.write(" <COMMAND>");
+        }
 
         self.fmt.write("\n\n");
     }
@@ -118,6 +150,28 @@ impl<'a> HelpBuilder<'a> {
             }
         }
         self.fmt.write("\n\n");
+    }
+
+    fn build_commands(&mut self) {
+        if !self.has_subcommands() {
+            return;
+        }
+
+        self.fmt.write(&self.fmt.bold_underline("Commands:\n"));
+
+        for &spec in &self.specs {
+            let Spec::Subcommand(spec) = spec else {
+                continue;
+            };
+
+            self.fmt
+                .write(&format!("  {}:\n", self.fmt.bold(spec.name)));
+            for line in spec.doc.lines() {
+                self.fmt.write(&format!("    {line}\n"));
+            }
+        }
+
+        self.fmt.write("\n");
     }
 
     fn build_arguments(&mut self) {
@@ -216,6 +270,12 @@ impl<'a> HelpBuilder<'a> {
         self.specs.iter().any(|spec| matches!(spec, Spec::Arg(_)))
     }
 
+    fn has_subcommands(&self) -> bool {
+        self.specs
+            .iter()
+            .any(|spec| matches!(spec, Spec::Subcommand(_)))
+    }
+
     fn has_options(&self, include_requried: bool) -> bool {
         self.specs.iter().any(|spec| match spec {
             Spec::Opt(spec) => include_requried || spec.example.is_none(),
@@ -235,6 +295,8 @@ impl<'a> HelpBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::subcommand::SubcommandSpec;
+
     use super::*;
 
     #[test]
@@ -373,6 +435,87 @@ Arguments:
     [default: 9]
   [MULTI]:
     Baz
+
+Options:
+  --help, -h:
+    Print help
+"#
+        );
+    }
+
+    #[test]
+    fn before_subcommands_help() {
+        let mut args = args(&["noargs"]);
+        args.metadata_mut().app_description = "";
+        FlagSpec::HELP.take(&mut args);
+        SubcommandSpec {
+            name: "put",
+            doc: "Put an entry",
+            ..Default::default()
+        }
+        .take(&mut args);
+        SubcommandSpec {
+            name: "get",
+            doc: "Get an entry",
+            ..Default::default()
+        }
+        .take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: noargs [OPTIONS] <COMMAND>
+
+Commands:
+  put:
+    Put an entry
+  get:
+    Get an entry
+
+Options:
+  --help, -h:
+    Print help
+"#
+        );
+    }
+
+    #[test]
+    fn after_subcommands_help() {
+        let mut args = args(&["noargs", "get"]);
+        args.metadata_mut().app_description = "";
+        FlagSpec::HELP.take(&mut args);
+        SubcommandSpec {
+            name: "put",
+            doc: "Put an entry",
+            ..Default::default()
+        }
+        .take(&mut args);
+        let cmd = SubcommandSpec {
+            name: "get",
+            doc: "Get an entry",
+            ..Default::default()
+        }
+        .take(&mut args);
+        ArgSpec {
+            name: "KEY",
+            example: Some("foo"),
+            min_index: cmd.index(),
+            ..Default::default()
+        }
+        .take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: noargs [OPTIONS] <COMMAND>
+
+Commands:
+  put:
+    Put an entry
+  get:
+    Get an entry
 
 Options:
   --help, -h:
