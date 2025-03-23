@@ -8,5 +8,6 @@ description = "Imperative command-line argument parser library with no dependenc
 homepage = "https://github.com/sile/noargs"
 repository = "https://github.com/sile/noargs"
 readme = "README.md"
+categories = [ "command-line-interface" ]
 
 [dependencies]
