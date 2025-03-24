@@ -302,7 +302,7 @@ mod tests {
             help,
             r#"Test command
 
-Usage: noargs [OPTIONS]
+Usage: <APP_NAME> [OPTIONS]
 
 Options:
   --help, -h:
@@ -333,7 +333,7 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: noargs [OPTIONS]
+            r#"Usage: <APP_NAME> [OPTIONS]
 
 Options:
   --help, -h:
@@ -366,10 +366,10 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: noargs --foo <INTEGER> [OPTIONS]
+            r#"Usage: <APP_NAME> --foo <INTEGER> [OPTIONS]
 
 Example:
-  $ noargs --foo 10
+  $ <APP_NAME> --foo 10
 
 Options:
   --help, -h:
@@ -412,10 +412,10 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: noargs [OPTIONS] <REQUIRED> [OPTIONAL] [MULTI]...
+            r#"Usage: <APP_NAME> [OPTIONS] <REQUIRED> [OPTIONAL] [MULTI]...
 
 Example:
-  $ noargs 3
+  $ <APP_NAME> 3
 
 Arguments:
   <REQUIRED>:
@@ -455,7 +455,7 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: noargs [OPTIONS] <COMMAND>
+            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
 
 Commands:
   put:
@@ -507,10 +507,10 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: noargs ... get [OPTIONS] <KEY>
+            r#"Usage: <APP_NAME> ... get [OPTIONS] <KEY>
 
 Example:
-  $ noargs get hi
+  $ <APP_NAME> get hi
 
 Arguments:
   <KEY>:
