@@ -132,10 +132,10 @@ pub struct RawArg {
 /// Metadata of [`Args`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Metadata {
-    /// Application name (default: `env!("CARGO_PKG_NAME")`).
+    /// Application name (e.g., `env!("CARGO_PKG_NAME")`).
     pub app_name: &'static str,
 
-    /// Application description (default: `env!("CARGO_PKG_DESCRIPTION")`).
+    /// Application description (e.g., `env!("CARGO_PKG_DESCRIPTION")`).
     pub app_description: &'static str,
 
     /// Flag name for help (default: `Some("help")`).
@@ -148,23 +148,14 @@ pub struct Metadata {
     pub help_mode: bool,
 }
 
-impl Metadata {
-    pub(crate) const DEFAULT: Self = Self {
-        app_name: env!("CARGO_PKG_NAME"),
-        app_description: env!("CARGO_PKG_DESCRIPTION"),
-        help_flag_name: Some("help"),
-        help_mode: false,
-    };
-
-    /// Shorthand for `format!("{} {}", self.app_name, env!("CARGO_PKG_VERSION"))`.
-    pub fn version_line(self) -> String {
-        format!("{} {}", self.app_name, env!("CARGO_PKG_VERSION"))
-    }
-}
-
 impl Default for Metadata {
     fn default() -> Self {
-        Self::DEFAULT
+        Self {
+            app_name: "<APP_NAME>",
+            app_description: "",
+            help_flag_name: Some("help"),
+            help_mode: false,
+        }
     }
 }
 
