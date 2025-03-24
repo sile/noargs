@@ -1,5 +1,5 @@
 use crate::{
-    args::{Args, Metadata},
+    args::{Metadata, RawArgs},
     error::Error,
 };
 
@@ -23,7 +23,7 @@ pub struct OptSpec {
     /// Environment variable name.
     ///
     /// If a non-empty value is set for this environment variable,
-    /// it will be used as the value of this option when the option is not specified in [`Args`].
+    /// it will be used as the value of this option when the option is not specified in [`RawArgs`].
     pub env: Option<&'static str>,
 
     /// Default value.
@@ -31,7 +31,7 @@ pub struct OptSpec {
 
     /// Example value (if this is set, the option is considered to be requried when generating the help text).
     ///
-    /// This is only used if `Args::metadata().help_mode` is `true`.
+    /// This is only used if `RawArgs::metadata().help_mode` is `true`.
     pub example: Option<&'static str>,
 
     /// Minimum index that [`Opt::index()`] can have.
@@ -112,7 +112,7 @@ impl OptSpec {
     }
 
     /// Takes the first [`Opt`] instance that satisfies this specification from the raw arguments.
-    pub fn take(self, args: &mut Args) -> Opt {
+    pub fn take(self, args: &mut RawArgs) -> Opt {
         let metadata = args.metadata();
         args.with_record_opt(|args| {
             if args.metadata().help_mode {
@@ -343,7 +343,7 @@ impl Opt {
         }
     }
 
-    /// Returns the index at which the raw value associated with the name of this option was located in [`Args`].
+    /// Returns the index at which the raw value associated with the name of this option was located in [`RawArgs`].
     pub fn index(&self) -> Option<usize> {
         if let Opt::Long { index, .. } | Opt::Short { index, .. } = self {
             Some(*index)
@@ -409,8 +409,8 @@ mod tests {
         assert_eq!(opt.take(&mut args).parse::<usize>().ok(), None);
     }
 
-    fn args(raw_args: &[&str]) -> Args {
-        Args::new(raw_args.iter().map(|a| a.to_string()))
+    fn args(raw_args: &[&str]) -> RawArgs {
+        RawArgs::new(raw_args.iter().map(|a| a.to_string()))
     }
 
     fn opt(name: &'static str) -> OptSpec {

@@ -1,6 +1,6 @@
 use std::io::IsTerminal;
 
-use crate::{Arg, Args, Metadata, Opt, OptSpec, args::Taken, formatter::Formatter};
+use crate::{args::Taken, formatter::Formatter, Arg, Metadata, Opt, OptSpec, RawArgs};
 
 /// Possible errors.
 ///
@@ -21,7 +21,7 @@ pub enum Error {
 }
 
 impl Error {
-    pub(crate) fn check_command_error(args: &Args) -> Result<(), Error> {
+    pub(crate) fn check_command_error(args: &RawArgs) -> Result<(), Error> {
         let Some(Taken::Cmd(cmd)) = args.log().last() else {
             return Ok(());
         };
@@ -40,7 +40,7 @@ impl Error {
         }
     }
 
-    pub(crate) fn check_unexpected_arg(args: &Args) -> Result<(), Error> {
+    pub(crate) fn check_unexpected_arg(args: &RawArgs) -> Result<(), Error> {
         if let Some(unexpected_arg) = args.next_raw_arg_value() {
             Err(Error::UnexpectedArg {
                 metadata: args.metadata(),
@@ -173,17 +173,17 @@ mod tests {
     #[test]
     fn unexpected_arg_error() {
         // No error.
-        let args = Args::new(["noargs"].iter().map(|a| a.to_string()));
+        let args = RawArgs::new(["noargs"].iter().map(|a| a.to_string()));
         assert!(Error::check_unexpected_arg(&args).is_ok());
 
         // Error without `--help`.
-        let mut args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
+        let mut args = RawArgs::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
         args.metadata_mut().help_flag_name = None;
         let e = Error::check_unexpected_arg(&args).expect_err("should error");
         assert_eq!(e.to_string(false), "unexpected argument '--foo' found");
 
         // Error with `--help`.
-        let args = Args::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
+        let args = RawArgs::new(["noargs", "--foo"].iter().map(|a| a.to_string()));
         let e = Error::check_unexpected_arg(&args).expect_err("should error");
         assert_eq!(
             e.to_string(false),
@@ -195,7 +195,7 @@ Try '--help' for more information."#
 
     #[test]
     fn undefined_command_error() {
-        let mut args = Args::new(["noargs", "baz"].iter().map(|a| a.to_string()));
+        let mut args = RawArgs::new(["noargs", "baz"].iter().map(|a| a.to_string()));
         args.metadata_mut().help_flag_name = None;
         cmd("foo").take(&mut args);
         cmd("bar").take(&mut args);
@@ -205,7 +205,7 @@ Try '--help' for more information."#
 
     #[test]
     fn missing_command_error() {
-        let mut args = Args::new(["noargs"].iter().map(|a| a.to_string()));
+        let mut args = RawArgs::new(["noargs"].iter().map(|a| a.to_string()));
         args.metadata_mut().help_flag_name = None;
         cmd("foo").take(&mut args);
         cmd("bar").take(&mut args);
@@ -215,7 +215,7 @@ Try '--help' for more information."#
 
     #[test]
     fn parse_arg_error() {
-        let mut args = Args::new(["noargs", "foo"].iter().map(|a| a.to_string()));
+        let mut args = RawArgs::new(["noargs", "foo"].iter().map(|a| a.to_string()));
         args.metadata_mut().help_flag_name = None;
         let e = arg("INTEGER")
             .take(&mut args)
@@ -229,7 +229,7 @@ Try '--help' for more information."#
 
     #[test]
     fn parse_opt_error() {
-        let mut args = Args::new(["noargs", "-f=bar"].iter().map(|a| a.to_string()));
+        let mut args = RawArgs::new(["noargs", "-f=bar"].iter().map(|a| a.to_string()));
         args.metadata_mut().help_flag_name = None;
         let e = opt("foo")
             .short('f')
@@ -244,7 +244,7 @@ Try '--help' for more information."#
 
     #[test]
     fn missing_arg_error() {
-        let mut args = Args::new(["noargs"].iter().map(|a| a.to_string()));
+        let mut args = RawArgs::new(["noargs"].iter().map(|a| a.to_string()));
         args.metadata_mut().help_flag_name = None;
         let e = arg("INTEGER")
             .take(&mut args)
@@ -255,7 +255,7 @@ Try '--help' for more information."#
 
     #[test]
     fn missing_opt_error() {
-        let mut args = Args::new(["noargs", "-f"].iter().map(|a| a.to_string()));
+        let mut args = RawArgs::new(["noargs", "-f"].iter().map(|a| a.to_string()));
         args.metadata_mut().help_flag_name = None;
         let e = opt("foo")
             .short('f')

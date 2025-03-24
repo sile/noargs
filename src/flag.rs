@@ -1,4 +1,4 @@
-use crate::args::Args;
+use crate::args::RawArgs;
 
 /// Specification for [`Flag`].
 ///
@@ -76,7 +76,7 @@ impl FlagSpec {
     }
 
     /// Takes the first [`Flag`] instance that satisfies this specification from the raw arguments.
-    pub fn take(self, args: &mut Args) -> Flag {
+    pub fn take(self, args: &mut RawArgs) -> Flag {
         args.with_record_flag(|args| {
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
                 let Some(value) = &mut raw_arg.value else {
@@ -148,7 +148,7 @@ impl Flag {
         !matches!(self, Flag::None { .. })
     }
 
-    /// Returns the index at which the raw value associated with this flag was located in [`Args`].
+    /// Returns the index at which the raw value associated with this flag was located in [`RawArgs`].
     pub fn index(self) -> Option<usize> {
         match self {
             Flag::Short { index, .. } | Flag::Long { index, .. } => Some(index),
@@ -216,8 +216,8 @@ mod tests {
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
     }
 
-    fn args(raw_args: &[&str]) -> Args {
-        Args::new(raw_args.iter().map(|a| a.to_string()))
+    fn args(raw_args: &[&str]) -> RawArgs {
+        RawArgs::new(raw_args.iter().map(|a| a.to_string()))
     }
 
     fn flag(long_name: &'static str) -> FlagSpec {

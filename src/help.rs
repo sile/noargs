@@ -1,20 +1,20 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use crate::{
-    args::{Args, Taken},
+    args::{RawArgs, Taken},
     formatter::Formatter,
 };
 
 #[derive(Debug)]
 pub struct HelpBuilder<'a> {
-    args: &'a Args,
+    args: &'a RawArgs,
     log: Vec<Taken>,
     fmt: Formatter,
     cmd_name: Option<&'static str>,
 }
 
 impl<'a> HelpBuilder<'a> {
-    pub fn new(args: &'a Args, is_terminal: bool) -> Self {
+    pub fn new(args: &'a RawArgs, is_terminal: bool) -> Self {
         let mut this = Self {
             args,
             log: args.log().to_vec(),
@@ -285,7 +285,7 @@ impl<'a> HelpBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ArgSpec, CmdSpec, FlagSpec, HELP_FLAG, OptSpec, VERSION_FLAG};
+    use crate::{ArgSpec, CmdSpec, FlagSpec, OptSpec, HELP_FLAG, VERSION_FLAG};
 
     use super::*;
 
@@ -523,7 +523,7 @@ Options:
         );
     }
 
-    fn args(raw_args: &[&str]) -> Args {
-        Args::new(raw_args.iter().map(|a| a.to_string()))
+    fn args(raw_args: &[&str]) -> RawArgs {
+        RawArgs::new(raw_args.iter().map(|a| a.to_string()))
     }
 }

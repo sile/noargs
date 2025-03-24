@@ -1,4 +1,4 @@
-use crate::args::Args;
+use crate::args::RawArgs;
 
 /// Specification for [`Cmd`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -52,7 +52,7 @@ impl CmdSpec {
     }
 
     /// Takes the first [`Cmd`] instance that satisfies this specification from the raw arguments.
-    pub fn take(self, args: &mut Args) -> Cmd {
+    pub fn take(self, args: &mut RawArgs) -> Cmd {
         args.with_record_cmd(|args| {
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
                 let Some(value) = &raw_arg.value else {
@@ -102,7 +102,7 @@ impl Cmd {
         matches!(self, Self::Some { .. })
     }
 
-    /// Returns the index at which the raw value associated with this subcommand was located in [`Args`].
+    /// Returns the index at which the raw value associated with this subcommand was located in [`RawArgs`].
     pub fn index(self) -> Option<usize> {
         if let Self::Some { index, .. } = self {
             Some(index)
@@ -136,8 +136,8 @@ mod tests {
         }
     }
 
-    fn args(raw_args: &[&str]) -> Args {
-        Args::new(raw_args.iter().map(|a| a.to_string()))
+    fn args(raw_args: &[&str]) -> RawArgs {
+        RawArgs::new(raw_args.iter().map(|a| a.to_string()))
     }
 
     fn cmd(name: &'static str) -> CmdSpec {

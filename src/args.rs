@@ -1,19 +1,19 @@
 use std::{borrow::Cow, io::IsTerminal};
 
-use crate::{Arg, Cmd, Error, Flag, Opt, help::HelpBuilder};
+use crate::{help::HelpBuilder, Arg, Cmd, Error, Flag, Opt};
 #[expect(unused_imports)]
 use crate::{ArgSpec, OptSpec};
 
 /// Raw arguments that will be converted into [`Arg`], [`Opt`], [`Flag`] and [`Cmd`] instances.
 #[derive(Debug)]
-pub struct Args {
+pub struct RawArgs {
     metadata: Metadata,
     raw_args: Vec<RawArg>,
     log: Vec<Taken>,
 }
 
-impl Args {
-    /// Makes an [`Args`] instance with the given raw arguments.
+impl RawArgs {
+    /// Makes an [`RawArgs`] instance with the given raw arguments.
     pub fn new<I>(args: I) -> Self
     where
         I: Iterator<Item = String>,
@@ -129,7 +129,7 @@ pub struct RawArg {
     pub value: Option<String>,
 }
 
-/// Metadata of [`Args`].
+/// Metadata of [`RawArgs`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Metadata {
     /// Application name (e.g., `env!("CARGO_PKG_NAME")`).
@@ -143,7 +143,7 @@ pub struct Metadata {
 
     /// When enabled, the following help mode behaviors apply:
     ///
-    /// - [`Args::finish()`] will return `Ok(Some(help_text))` if successful
+    /// - [`RawArgs::finish()`] will return `Ok(Some(help_text))` if successful
     /// - Only default and example values will be used when calling [`ArgSpec::take()`] or [`OptSpec::take()`]
     pub help_mode: bool,
 }

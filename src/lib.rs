@@ -20,7 +20,7 @@ mod help;
 mod opt;
 
 pub use self::arg::{Arg, ArgSpec};
-pub use self::args::{Args, Metadata};
+pub use self::args::{Metadata, RawArgs};
 pub use self::cmd::{Cmd, CmdSpec};
 pub use self::error::Error;
 pub use self::flag::{Flag, FlagSpec};
@@ -29,11 +29,11 @@ pub use self::opt::{Opt, OptSpec};
 /// A specialized [`std::result::Result`] type for the [`Error`] type.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Makes an [`Args`] instance initialized with command-line arguments.
+/// Makes an [`RawArgs`] instance initialized with command-line arguments.
 ///
-/// This is a shorthand for `Args::new(std::env::args())`.
-pub fn args() -> Args {
-    Args::new(std::env::args())
+/// This is a shorthand for `RawArgs::new(std::env::args())`.
+pub fn raw_args() -> RawArgs {
+    RawArgs::new(std::env::args())
 }
 
 /// Makes an [`ArgSpec`] instance with a specified name.
