@@ -1,6 +1,6 @@
 use std::{borrow::Cow, io::IsTerminal};
 
-use crate::{help::HelpBuilder, Arg, Cmd, Error, Flag, Opt};
+use crate::{Arg, Cmd, Error, Flag, Opt, help::HelpBuilder};
 #[expect(unused_imports)]
 use crate::{ArgSpec, OptSpec};
 

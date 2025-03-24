@@ -285,7 +285,7 @@ impl<'a> HelpBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ArgSpec, CmdSpec, FlagSpec, OptSpec, HELP_FLAG, VERSION_FLAG};
+    use crate::{ArgSpec, CmdSpec, FlagSpec, HELP_FLAG, OptSpec, VERSION_FLAG};
 
     use super::*;
 

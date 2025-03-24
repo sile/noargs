@@ -1,6 +1,6 @@
 use std::io::IsTerminal;
 
-use crate::{args::Taken, formatter::Formatter, Arg, Metadata, Opt, OptSpec, RawArgs};
+use crate::{Arg, Metadata, Opt, OptSpec, RawArgs, args::Taken, formatter::Formatter};
 
 /// Possible errors.
 ///
