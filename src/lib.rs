@@ -10,8 +10,9 @@
 //! - Automatically generates help text
 //! - Simple and minimal interface due to its imperative nature (no complex DSL)
 //!
-//! # Example
+//! # Examples
 //!
+//! The following code demonstrates the basic usage of `noargs`:
 //! ```
 //! fn main() -> noargs::Result<()> {
 //!     // Create `noargs::RawArgs` having the result of `std::env::args()`.
@@ -21,7 +22,7 @@
 //!     args.metadata_mut().app_name = env!("CARGO_PKG_NAME");
 //!     args.metadata_mut().app_description = env!("CARGO_PKG_DESCRIPTION");
 //!
-//!     // Handle common flags.
+//!     // Handle well-known flags.
 //!     if noargs::VERSION_FLAG.take(&mut args).is_present() {
 //!         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 //!         return Ok(());
