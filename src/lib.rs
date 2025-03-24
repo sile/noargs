@@ -9,6 +9,38 @@
 //!   - Subcommands ([`Cmd`])
 //! - Automatically generates help text
 //! - Simple and minimal interface due to its imperative nature (no complex DSL)
+//!
+//! # Example
+//!
+//! ```
+//! fn main() -> noargs::Result<()> {
+//!     // Create `noargs::RawArgs` having the result of `std::env::args()`.
+//!     let mut args = noargs::raw_args();
+//!
+//!     // Set metadata for help.
+//!     args.metadata_mut().app_name = env!("CARGO_PKG_NAME");
+//!     args.metadata_mut().app_description = env!("CARGO_PKG_DESCRIPTION");
+//!
+//!     // Handle common flags.
+//!     if noargs::VERSION_FLAG.take(&mut args).is_present() {
+//!         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+//!         return Ok(());
+//!     }
+//!     if noargs::HELP_FLAG.take(&mut args).is_present() {
+//!         args.metadata_mut().help_mode = true;
+//!     }
+//!
+//!     // Check unexpected args and build help text if need.
+//!     if let Some(help) = args.finish()? {
+//!         print!("{help}");
+//!         return Ok(());
+//!     }
+//!
+//!     // Do application logic.
+//!
+//!     Ok(())
+//! }
+//! ```
 #![warn(missing_docs)]
 mod arg;
 mod args;
