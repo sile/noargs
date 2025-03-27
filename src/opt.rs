@@ -290,10 +290,7 @@ impl Opt {
         let value = self.raw_value().ok_or_else(|| Error::MissingOpt {
             opt: Box::new(self.clone()),
         })?;
-        value.parse::<T>().map_err(|e| Error::ParseOptError {
-            opt: Box::new(self.clone()),
-            reason: e.to_string(),
-        })
+        self.parse_with(|_| value.parse())
     }
 
     /// Parse the value of this option if it is present.
@@ -306,11 +303,15 @@ impl Opt {
     }
 
     /// Similar to [`Opt::parse()`], but more flexible as this method allows you to specify an arbitrary parsing function.
-    pub fn parse_with<F, T>(&self, f: F) -> Result<T, Error>
+    pub fn parse_with<F, T, E>(&self, f: F) -> Result<T, Error>
     where
-        F: FnOnce(&Self) -> Result<T, Error>,
+        F: FnOnce(&Self) -> Result<T, E>,
+        E: std::fmt::Display,
     {
-        f(self)
+        f(self).map_err(|e| Error::ParseOptError {
+            opt: Box::new(self.clone()),
+            reason: e.to_string(),
+        })
     }
 
     /// Returns the specification of this option.
@@ -341,6 +342,11 @@ impl Opt {
             Opt::Example { spec, .. } => spec.example,
             Opt::None { .. } => None,
         }
+    }
+
+    /// Returns the raw value of this option, or an empty string if not present.
+    pub fn raw_value_or_empty(&self) -> &str {
+        self.raw_value().unwrap_or("")
     }
 
     /// Returns the index at which the raw value associated with the name of this option was located in [`RawArgs`].
