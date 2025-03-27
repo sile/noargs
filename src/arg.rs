@@ -207,6 +207,11 @@ impl Arg {
         }
     }
 
+    /// Returns the raw value of this argument, or an empty string if not present.
+    pub fn raw_value_or_empty(&self) -> &str {
+        self.raw_value().unwrap_or("")
+    }
+
     /// Returns the index at which the raw value of this argument was located in [`RawArgs`].
     pub fn index(&self) -> Option<usize> {
         if let Arg::Positional { index, .. } = self {

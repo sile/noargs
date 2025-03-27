@@ -344,6 +344,11 @@ impl Opt {
         }
     }
 
+    /// Returns the raw value of this option, or an empty string if not present.
+    pub fn raw_value_or_empty(&self) -> &str {
+        self.raw_value().unwrap_or("")
+    }
+
     /// Returns the index at which the raw value associated with the name of this option was located in [`RawArgs`].
     pub fn index(&self) -> Option<usize> {
         if let Opt::Long { index, .. } | Opt::Short { index, .. } = self {
