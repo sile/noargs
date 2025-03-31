@@ -114,6 +114,28 @@ impl FlagSpec {
             }
         })
     }
+
+    /// Similar to [`FlagSpec::take()`], but updates the help-related metadata of `args` when the flag is present.
+    ///
+    /// Specifically, the following code is executed:
+    /// ```no_run
+    /// args.metadata_mut().help_mode = true;
+    /// args.metadata_mut().help_flag_name = Some(self.name);
+    /// if matches!(flag, Flag::Long { .. }) {
+    ///     args.metadata_mut().full_help = true;
+    /// }
+    /// ```
+    pub fn take_help(self, args: &mut RawArgs) -> Flag {
+        let flag = self.take(args);
+        if flag.is_present() {
+            args.metadata_mut().help_mode = true;
+            args.metadata_mut().help_flag_name = Some(self.name);
+            if matches!(flag, Flag::Long { .. }) {
+                args.metadata_mut().full_help = true;
+            }
+        }
+        flag
+    }
 }
 
 impl Default for FlagSpec {
