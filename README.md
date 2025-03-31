@@ -42,9 +42,7 @@ fn main() -> noargs::Result<()> {
         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
-    if noargs::HELP_FLAG.take(&mut args).is_present() {
-        args.metadata_mut().help_mode = true;
-    }
+    noargs::HELP_FLAG.take_help(&mut args);
 
     // Handle application specific args.
     let foo: usize = noargs::opt("foo").default("1").take(&mut args).parse()?;
