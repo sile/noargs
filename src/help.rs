@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::collections::HashSet;
 
 use crate::{
     args::{RawArgs, Taken},
@@ -51,6 +51,15 @@ impl<'a> HelpBuilder<'a> {
         this
     }
 
+    fn is_full_mode(&self) -> bool {
+        self.args.metadata().full_help
+    }
+
+    fn doc_lines<'b>(&self, doc: &'b str) -> impl 'b + Iterator<Item = &'b str> {
+        let limit = if self.is_full_mode() { usize::MAX } else { 1 };
+        doc.lines().take(limit)
+    }
+
     pub fn build(mut self) -> String {
         self.build_description();
         self.build_usage();
@@ -58,15 +67,23 @@ impl<'a> HelpBuilder<'a> {
         self.build_commands();
         self.build_arguments();
         self.build_options();
-        self.fmt.finish()
+
+        let mut text = self.fmt.finish();
+        if text.ends_with("\n\n") {
+            text.pop();
+        }
+        text
     }
 
     fn build_description(&mut self) {
         if self.args.metadata().app_description.is_empty() {
             return;
         }
-        self.fmt.write(self.args.metadata().app_description);
-        self.fmt.write("\n\n");
+        for line in self.doc_lines(self.args.metadata().app_description) {
+            self.fmt.write(line);
+            self.fmt.write("\n");
+        }
+        self.fmt.write("\n");
     }
 
     fn build_usage(&mut self) {
@@ -145,6 +162,25 @@ impl<'a> HelpBuilder<'a> {
         self.fmt.write("\n\n");
     }
 
+    fn calc_width_offset_newline<F>(&self, f: F) -> (usize, usize, &'static str)
+    where
+        F: Fn(&Taken) -> bool,
+    {
+        if self.is_full_mode() {
+            return (0, 4, "\n");
+        }
+        (
+            self.log
+                .iter()
+                .filter(|e| f(e))
+                .map(|e| self.entry_name(e).len())
+                .max()
+                .unwrap_or_default(),
+            1,
+            "",
+        )
+    }
+
     fn build_commands(&mut self) {
         if !self.has_subcommands() {
             return;
@@ -152,19 +188,28 @@ impl<'a> HelpBuilder<'a> {
 
         self.fmt.write(&self.fmt.bold_underline("Commands:\n"));
 
+        let (width, offset, newline) =
+            self.calc_width_offset_newline(|e| matches!(e, Taken::Cmd(_)));
         for entry in &self.log {
             let Taken::Cmd(cmd) = entry else {
                 continue;
             };
             let cmd = cmd.spec();
 
-            self.fmt.write(&format!("  {}:\n", self.fmt.bold(cmd.name)));
+            self.fmt.write(&format!(
+                "  {:width$}{newline}",
+                self.entry_name(entry),
+                width = width
+            ));
             for line in cmd.doc.lines() {
-                self.fmt.write(&format!("    {line}\n"));
+                self.fmt
+                    .write(&format!("{:offset$}{line}{newline}", "", offset = offset));
             }
+            self.fmt.write("\n");
         }
-
-        self.fmt.write("\n");
+        if !self.is_full_mode() {
+            self.fmt.write("\n");
+        }
     }
 
     fn build_arguments(&mut self) {
@@ -174,6 +219,8 @@ impl<'a> HelpBuilder<'a> {
 
         self.fmt.write(&self.fmt.bold_underline("Arguments:\n"));
 
+        let (width, offset, newline) =
+            self.calc_width_offset_newline(|e| matches!(e, Taken::Arg(_)));
         let mut known = HashSet::new();
         for entry in &self.log {
             let Taken::Arg(arg) = entry else {
@@ -186,23 +233,60 @@ impl<'a> HelpBuilder<'a> {
             }
             known.insert(arg);
 
-            if arg.example.is_some() {
-                self.fmt
-                    .write(&format!("  <{}>:\n", self.fmt.bold(arg.name)));
-            } else {
-                self.fmt
-                    .write(&format!("  [{}]:\n", self.fmt.bold(arg.name)));
-            }
+            let name = self.entry_name(entry);
+            self.fmt
+                .write(&format!("  {:width$}{newline}", name, width = width));
 
-            for line in arg.doc.lines() {
-                self.fmt.write(&format!("    {line}\n"));
+            for line in self.doc_lines(arg.doc) {
+                self.fmt
+                    .write(&format!("{:offset$}{line}{newline}", "", offset = offset));
             }
             if let Some(default) = arg.default {
-                self.fmt.write(&format!("    [default: {default}]\n"));
+                self.fmt.write(&format!(
+                    "{:offset$}[default: {default}]{newline}",
+                    "",
+                    offset = offset
+                ));
             }
-        }
 
-        self.fmt.write("\n");
+            self.fmt.write("\n");
+        }
+        if !self.is_full_mode() {
+            self.fmt.write("\n");
+        }
+    }
+
+    fn entry_name(&self, entry: &Taken) -> String {
+        match entry {
+            Taken::Opt(opt) => {
+                let opt = opt.spec();
+                let name = match (opt.short, self.is_full_mode()) {
+                    (Some(short), false) => format!("-{short}, --{} <{}>", opt.name, opt.ty),
+                    (Some(short), true) => format!("--{}, -{short} <{}>", opt.name, opt.ty),
+                    (None, false) => format!("    --{} <{}>", opt.name, opt.ty),
+                    (None, true) => format!("--{} <{}>", opt.name, opt.ty),
+                };
+                self.fmt.bold(&name).into_owned()
+            }
+            Taken::Flag(flag) => {
+                let flag = flag.spec();
+                let name = match (flag.short, self.is_full_mode()) {
+                    (Some(short), false) => format!("-{short}, --{}", flag.name),
+                    (Some(short), true) => format!("--{}, -{short}", flag.name),
+                    (None, false) => format!("    --{}", flag.name),
+                    (None, true) => format!("--{}", flag.name),
+                };
+                self.fmt.bold(&name).into_owned()
+            }
+            Taken::Arg(arg) => {
+                if arg.spec().example.is_some() {
+                    format!("<{}>", self.fmt.bold(arg.spec().name))
+                } else {
+                    format!("[{}]", self.fmt.bold(arg.spec().name))
+                }
+            }
+            Taken::Cmd(cmd) => self.fmt.bold(cmd.spec().name).into_owned(),
+        }
     }
 
     fn build_options(&mut self) {
@@ -212,17 +296,19 @@ impl<'a> HelpBuilder<'a> {
 
         self.fmt.write(&self.fmt.bold_underline("Options:\n"));
 
+        let (width, offset, newline) =
+            self.calc_width_offset_newline(|e| matches!(e, Taken::Opt(_) | Taken::Flag(_)));
         let mut known = HashSet::new();
         for entry in &self.log {
             let name = entry.name();
-            let (short, ty, doc, env, default) = match entry {
+            let (doc, env, default) = match entry {
                 Taken::Opt(opt) => {
                     let opt = opt.spec();
-                    (opt.short, Some(opt.ty), opt.doc, opt.env, opt.default)
+                    (opt.doc, opt.env, opt.default)
                 }
                 Taken::Flag(flag) => {
                     let flag = flag.spec();
-                    (flag.short, None, flag.doc, flag.env, None)
+                    (flag.doc, flag.env, None)
                 }
                 _ => continue,
             };
@@ -232,29 +318,32 @@ impl<'a> HelpBuilder<'a> {
             }
             known.insert(name);
 
-            let names = if let Some(short) = short {
-                format!("--{name}, -{short}")
-            } else {
-                format!("--{name}")
-            };
-            self.fmt.write(&format!(
-                "  {}{}:\n",
-                self.fmt.bold(&names),
-                if let Some(ty) = ty {
-                    Cow::Owned(format!(" <{ty}>"))
-                } else {
-                    Cow::Borrowed("")
-                }
-            ));
-            for line in doc.lines() {
-                self.fmt.write(&format!("    {line}\n"));
+            let name = self.entry_name(entry);
+            self.fmt
+                .write(&format!("  {:width$}{newline}", name, width = width));
+            for line in self.doc_lines(doc) {
+                self.fmt
+                    .write(&format!("{:offset$}{line}{newline}", "", offset = offset));
             }
             if let Some(env) = env {
-                self.fmt.write(&format!("    [env: {env}]\n"));
+                self.fmt.write(&format!(
+                    "{:offset$}[env: {env}]{newline}",
+                    "",
+                    offset = offset
+                ));
             }
             if let Some(default) = default {
-                self.fmt.write(&format!("    [default: {default}]\n"));
+                self.fmt.write(&format!(
+                    "{:offset$}[default: {default}]{newline}",
+                    "",
+                    offset = offset
+                ));
             }
+
+            self.fmt.write("\n");
+        }
+        if !self.is_full_mode() {
+            self.fmt.write("\n");
         }
     }
 
@@ -305,10 +394,8 @@ mod tests {
 Usage: <APP_NAME> [OPTIONS]
 
 Options:
-  --help, -h:
-    Print help.
-  --version:
-    Print version.
+  -h, --help    Print help ('--help' for full help, '-h' for summary)
+      --version Print version
 "#
         );
     }
@@ -336,9 +423,23 @@ Options:
             r#"Usage: <APP_NAME> [OPTIONS]
 
 Options:
-  --help, -h:
-    Print help.
-  --foo, -f <INTEGER>:
+  -h, --help          Print help ('--help' for full help, '-h' for summary)
+  -f, --foo <INTEGER> An integer [env: FOO_ENV] [default: 10]
+"#
+        );
+
+        args.metadata_mut().full_help = true;
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: <APP_NAME> [OPTIONS]
+
+Options:
+  --help, -h
+    Print help ('--help' for full help, '-h' for summary)
+
+  --foo, -f <INTEGER>
     An integer
     This is foo
     [env: FOO_ENV]
@@ -372,10 +473,8 @@ Example:
   $ <APP_NAME> --foo 10
 
 Options:
-  --help, -h:
-    Print help.
-  --foo, -f <INTEGER>:
-    An integer
+  -h, --help          Print help ('--help' for full help, '-h' for summary)
+  -f, --foo <INTEGER> An integer
 "#
         );
     }
@@ -387,7 +486,7 @@ Options:
         HELP_FLAG.take(&mut args);
         ArgSpec {
             name: "REQUIRED",
-            doc: "Foo",
+            doc: "Foo\nDetail is foo",
             example: Some("3"),
             ..Default::default()
         }
@@ -418,17 +517,40 @@ Example:
   $ <APP_NAME> 3
 
 Arguments:
-  <REQUIRED>:
+  <REQUIRED> Foo
+  [OPTIONAL] Bar [default: 9]
+  [MULTI]    Baz
+
+Options:
+  -h, --help Print help ('--help' for full help, '-h' for summary)
+"#
+        );
+
+        args.metadata_mut().full_help = true;
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: <APP_NAME> [OPTIONS] <REQUIRED> [OPTIONAL] [MULTI]...
+
+Example:
+  $ <APP_NAME> 3
+
+Arguments:
+  <REQUIRED>
     Foo
-  [OPTIONAL]:
+    Detail is foo
+
+  [OPTIONAL]
     Bar
     [default: 9]
-  [MULTI]:
+
+  [MULTI]
     Baz
 
 Options:
-  --help, -h:
-    Print help.
+  --help, -h
+    Print help ('--help' for full help, '-h' for summary)
 "#
         );
     }
@@ -458,14 +580,31 @@ Options:
             r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
 
 Commands:
-  put:
+  put Put an entry
+  get Get an entry
+
+Options:
+  -h, --help Print help ('--help' for full help, '-h' for summary)
+"#
+        );
+
+        args.metadata_mut().full_help = true;
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
+
+Commands:
+  put
     Put an entry
-  get:
+
+  get
     Get an entry
 
 Options:
-  --help, -h:
-    Print help.
+  --help, -h
+    Print help ('--help' for full help, '-h' for summary)
 "#
         );
     }
@@ -513,12 +652,30 @@ Example:
   $ <APP_NAME> get hi
 
 Arguments:
-  <KEY>:
+  <KEY> A key string
+
+Options:
+  -h, --help Print help ('--help' for full help, '-h' for summary)
+"#
+        );
+
+        args.metadata_mut().full_help = true;
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: <APP_NAME> ... get [OPTIONS] <KEY>
+
+Example:
+  $ <APP_NAME> get hi
+
+Arguments:
+  <KEY>
     A key string
 
 Options:
-  --help, -h:
-    Print help.
+  --help, -h
+    Print help ('--help' for full help, '-h' for summary)
 "#
         );
     }

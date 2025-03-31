@@ -27,9 +27,7 @@
 //!         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 //!         return Ok(());
 //!     }
-//!     if noargs::HELP_FLAG.take(&mut args).is_present() {
-//!         args.metadata_mut().help_mode = true;
-//!     }
+//!     noargs::HELP_FLAG.take_help(&mut args);
 //!
 //!     // Handle application specific args.
 //!     let foo: usize = noargs::opt("foo").default("1").take(&mut args).parse()?;
@@ -95,10 +93,12 @@ pub const fn cmd(name: &'static str) -> CmdSpec {
 }
 
 /// Well-known flag (`--help, -h`) for printing help information.
-pub const HELP_FLAG: FlagSpec = flag("help").short('h').doc("Print help.");
+pub const HELP_FLAG: FlagSpec = flag("help")
+    .short('h')
+    .doc("Print help ('--help' for full help, '-h' for summary)");
 
 /// Well-known flag (`--version`) for printing version information.
-pub const VERSION_FLAG: FlagSpec = flag("version").doc("Print version.");
+pub const VERSION_FLAG: FlagSpec = flag("version").doc("Print version");
 
 /// Well-known flag (`--`) to indicate the end of options (named arguments).
 pub const OPTIONS_END_FLAG: FlagSpec =
