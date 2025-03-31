@@ -260,25 +260,23 @@ impl<'a> HelpBuilder<'a> {
         match entry {
             Taken::Opt(opt) => {
                 let opt = opt.spec();
-                if let Some(short) = opt.short {
-                    self.fmt
-                        .bold(&format!("--{}, -{short} <{}>", opt.name, opt.ty))
-                        .into_owned()
-                } else {
-                    self.fmt
-                        .bold(&format!("--{} <{}>", opt.name, opt.ty))
-                        .into_owned()
-                }
+                let name = match (opt.short, self.is_full_mode()) {
+                    (Some(short), false) => format!("-{short}, --{} <{}>", opt.name, opt.ty),
+                    (Some(short), true) => format!("--{}, -{short} <{}>", opt.name, opt.ty),
+                    (None, false) => format!("    --{} <{}>", opt.name, opt.ty),
+                    (None, true) => format!("--{} <{}>", opt.name, opt.ty),
+                };
+                self.fmt.bold(&name).into_owned()
             }
             Taken::Flag(flag) => {
                 let flag = flag.spec();
-                if let Some(short) = flag.short {
-                    self.fmt
-                        .bold(&format!("--{}, -{short}", flag.name))
-                        .into_owned()
-                } else {
-                    self.fmt.bold(&format!("--{}", flag.name)).into_owned()
-                }
+                let name = match (flag.short, self.is_full_mode()) {
+                    (Some(short), false) => format!("-{short}, --{}", flag.name),
+                    (Some(short), true) => format!("--{}, -{short}", flag.name),
+                    (None, false) => format!("    --{}", flag.name),
+                    (None, true) => format!("--{}", flag.name),
+                };
+                self.fmt.bold(&name).into_owned()
             }
             Taken::Arg(arg) => {
                 if arg.spec().example.is_some() {
@@ -396,8 +394,8 @@ mod tests {
 Usage: <APP_NAME> [OPTIONS]
 
 Options:
-  --help, -h Print help ('--help' for full help, '-h' for summary)
-  --version  Print version
+  -h, --help    Print help ('--help' for full help, '-h' for summary)
+      --version Print version
 "#
         );
     }
@@ -425,8 +423,8 @@ Options:
             r#"Usage: <APP_NAME> [OPTIONS]
 
 Options:
-  --help, -h          Print help ('--help' for full help, '-h' for summary)
-  --foo, -f <INTEGER> An integer [env: FOO_ENV] [default: 10]
+  -h, --help          Print help ('--help' for full help, '-h' for summary)
+  -f, --foo <INTEGER> An integer [env: FOO_ENV] [default: 10]
 "#
         );
 
@@ -475,8 +473,8 @@ Example:
   $ <APP_NAME> --foo 10
 
 Options:
-  --help, -h          Print help ('--help' for full help, '-h' for summary)
-  --foo, -f <INTEGER> An integer
+  -h, --help          Print help ('--help' for full help, '-h' for summary)
+  -f, --foo <INTEGER> An integer
 "#
         );
     }
@@ -524,7 +522,7 @@ Arguments:
   [MULTI]    Baz
 
 Options:
-  --help, -h Print help ('--help' for full help, '-h' for summary)
+  -h, --help Print help ('--help' for full help, '-h' for summary)
 "#
         );
 
@@ -586,7 +584,7 @@ Commands:
   get Get an entry
 
 Options:
-  --help, -h Print help ('--help' for full help, '-h' for summary)
+  -h, --help Print help ('--help' for full help, '-h' for summary)
 "#
         );
 
@@ -657,7 +655,7 @@ Arguments:
   <KEY> A key string
 
 Options:
-  --help, -h Print help ('--help' for full help, '-h' for summary)
+  -h, --help Print help ('--help' for full help, '-h' for summary)
 "#
         );
 
