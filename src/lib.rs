@@ -93,7 +93,9 @@ pub const fn cmd(name: &'static str) -> CmdSpec {
 }
 
 /// Well-known flag (`--help, -h`) for printing help information.
-pub const HELP_FLAG: FlagSpec = flag("help").short('h').doc("Print help ('-f' for summary)");
+pub const HELP_FLAG: FlagSpec = flag("help")
+    .short('h')
+    .doc("Print help ('--help' for full help, '-h' for summary)");
 
 /// Well-known flag (`--version`) for printing version information.
 pub const VERSION_FLAG: FlagSpec = flag("version").doc("Print version");
