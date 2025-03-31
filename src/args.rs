@@ -146,6 +146,9 @@ pub struct Metadata {
     /// - [`RawArgs::finish()`] will return `Ok(Some(help_text))` if successful
     /// - Only default and example values will be used when calling [`ArgSpec::take()`] or [`OptSpec::take()`]
     pub help_mode: bool,
+
+    /// If `true`, a full help text will be displayed.
+    pub detailed_help: bool,
 }
 
 impl Default for Metadata {
@@ -155,6 +158,7 @@ impl Default for Metadata {
             app_description: "",
             help_flag_name: Some("help"),
             help_mode: false,
+            detailed_help: false,
         }
     }
 }
