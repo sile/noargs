@@ -58,7 +58,12 @@ impl<'a> HelpBuilder<'a> {
         self.build_commands();
         self.build_arguments();
         self.build_options();
-        self.fmt.finish()
+
+        let mut text = self.fmt.finish();
+        if text.ends_with("\n\n") {
+            text.pop();
+        }
+        text
     }
 
     fn build_description(&mut self) {
@@ -158,13 +163,12 @@ impl<'a> HelpBuilder<'a> {
             };
             let cmd = cmd.spec();
 
-            self.fmt.write(&format!("  {}:\n", self.fmt.bold(cmd.name)));
+            self.fmt.write(&format!("  {}\n", self.fmt.bold(cmd.name)));
             for line in cmd.doc.lines() {
                 self.fmt.write(&format!("    {line}\n"));
             }
+            self.fmt.write("\n");
         }
-
-        self.fmt.write("\n");
     }
 
     fn build_arguments(&mut self) {
@@ -188,10 +192,10 @@ impl<'a> HelpBuilder<'a> {
 
             if arg.example.is_some() {
                 self.fmt
-                    .write(&format!("  <{}>:\n", self.fmt.bold(arg.name)));
+                    .write(&format!("  <{}>\n", self.fmt.bold(arg.name)));
             } else {
                 self.fmt
-                    .write(&format!("  [{}]:\n", self.fmt.bold(arg.name)));
+                    .write(&format!("  [{}]\n", self.fmt.bold(arg.name)));
             }
 
             for line in arg.doc.lines() {
@@ -200,9 +204,9 @@ impl<'a> HelpBuilder<'a> {
             if let Some(default) = arg.default {
                 self.fmt.write(&format!("    [default: {default}]\n"));
             }
-        }
 
-        self.fmt.write("\n");
+            self.fmt.write("\n");
+        }
     }
 
     fn build_options(&mut self) {
@@ -238,7 +242,7 @@ impl<'a> HelpBuilder<'a> {
                 format!("--{name}")
             };
             self.fmt.write(&format!(
-                "  {}{}:\n",
+                "  {}{}\n",
                 self.fmt.bold(&names),
                 if let Some(ty) = ty {
                     Cow::Owned(format!(" <{ty}>"))
@@ -255,6 +259,8 @@ impl<'a> HelpBuilder<'a> {
             if let Some(default) = default {
                 self.fmt.write(&format!("    [default: {default}]\n"));
             }
+
+            self.fmt.write("\n");
         }
     }
 
@@ -305,9 +311,10 @@ mod tests {
 Usage: <APP_NAME> [OPTIONS]
 
 Options:
-  --help, -h:
+  --help, -h
     Print help ('-f' for summary)
-  --version:
+
+  --version
     Print version
 "#
         );
@@ -336,9 +343,10 @@ Options:
             r#"Usage: <APP_NAME> [OPTIONS]
 
 Options:
-  --help, -h:
+  --help, -h
     Print help ('-f' for summary)
-  --foo, -f <INTEGER>:
+
+  --foo, -f <INTEGER>
     An integer
     This is foo
     [env: FOO_ENV]
@@ -372,9 +380,10 @@ Example:
   $ <APP_NAME> --foo 10
 
 Options:
-  --help, -h:
+  --help, -h
     Print help ('-f' for summary)
-  --foo, -f <INTEGER>:
+
+  --foo, -f <INTEGER>
     An integer
 "#
         );
@@ -418,16 +427,18 @@ Example:
   $ <APP_NAME> 3
 
 Arguments:
-  <REQUIRED>:
+  <REQUIRED>
     Foo
-  [OPTIONAL]:
+
+  [OPTIONAL]
     Bar
     [default: 9]
-  [MULTI]:
+
+  [MULTI]
     Baz
 
 Options:
-  --help, -h:
+  --help, -h
     Print help ('-f' for summary)
 "#
         );
@@ -458,13 +469,14 @@ Options:
             r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
 
 Commands:
-  put:
+  put
     Put an entry
-  get:
+
+  get
     Get an entry
 
 Options:
-  --help, -h:
+  --help, -h
     Print help ('-f' for summary)
 "#
         );
@@ -513,11 +525,11 @@ Example:
   $ <APP_NAME> get hi
 
 Arguments:
-  <KEY>:
+  <KEY>
     A key string
 
 Options:
-  --help, -h:
+  --help, -h
     Print help ('-f' for summary)
 "#
         );
