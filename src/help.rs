@@ -172,7 +172,7 @@ impl<'a> HelpBuilder<'a> {
         (
             self.log
                 .iter()
-                .filter(|e| f(*e))
+                .filter(|e| f(e))
                 .map(|e| self.entry_name(e).len())
                 .max()
                 .unwrap_or_default(),
