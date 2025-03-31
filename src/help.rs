@@ -162,14 +162,23 @@ impl<'a> HelpBuilder<'a> {
         self.fmt.write("\n\n");
     }
 
-    fn calc_width_offset_newline<I>(&self, iter: I) -> (usize, usize, &'static str)
+    fn calc_width_offset_newline<F>(&self, f: F) -> (usize, usize, &'static str)
     where
-        I: Iterator<Item = usize>,
+        F: Fn(&Taken) -> bool,
     {
         if self.is_full_mode() {
             return (0, 4, "\n");
         }
-        (iter.max().unwrap_or_default(), 1, "")
+        (
+            self.log
+                .iter()
+                .filter(|e| f(*e))
+                .map(|e| self.entry_name(e).len())
+                .max()
+                .unwrap_or_default(),
+            1,
+            "",
+        )
     }
 
     fn build_commands(&mut self) {
@@ -179,12 +188,8 @@ impl<'a> HelpBuilder<'a> {
 
         self.fmt.write(&self.fmt.bold_underline("Commands:\n"));
 
-        let (width, offset, newline) = self.calc_width_offset_newline(
-            self.log
-                .iter()
-                .filter(|e| matches!(e, Taken::Cmd(_)))
-                .map(|e| e.name().len()),
-        );
+        let (width, offset, newline) =
+            self.calc_width_offset_newline(|e| matches!(e, Taken::Cmd(_)));
         for entry in &self.log {
             let Taken::Cmd(cmd) = entry else {
                 continue;
@@ -193,7 +198,7 @@ impl<'a> HelpBuilder<'a> {
 
             self.fmt.write(&format!(
                 "  {:width$}{newline}",
-                self.fmt.bold(cmd.name),
+                self.entry_name(entry),
                 width = width
             ));
             for line in cmd.doc.lines() {
@@ -214,12 +219,8 @@ impl<'a> HelpBuilder<'a> {
 
         self.fmt.write(&self.fmt.bold_underline("Arguments:\n"));
 
-        let (width, offset, newline) = self.calc_width_offset_newline(
-            self.log
-                .iter()
-                .filter(|e| matches!(e, Taken::Arg(_)))
-                .map(|e| e.name().len() + 2),
-        );
+        let (width, offset, newline) =
+            self.calc_width_offset_newline(|e| matches!(e, Taken::Arg(_)));
         let mut known = HashSet::new();
         for entry in &self.log {
             let Taken::Arg(arg) = entry else {
@@ -232,11 +233,7 @@ impl<'a> HelpBuilder<'a> {
             }
             known.insert(arg);
 
-            let name = if arg.example.is_some() {
-                format!("<{}>", self.fmt.bold(arg.name))
-            } else {
-                format!("[{}]", self.fmt.bold(arg.name))
-            };
+            let name = self.entry_name(entry);
             self.fmt
                 .write(&format!("  {:width$}{newline}", name, width = width));
 
@@ -259,6 +256,41 @@ impl<'a> HelpBuilder<'a> {
         }
     }
 
+    fn entry_name(&self, entry: &Taken) -> String {
+        match entry {
+            Taken::Opt(opt) => {
+                let opt = opt.spec();
+                if let Some(short) = opt.short {
+                    self.fmt
+                        .bold(&format!("--{}, -{short} <{}>", opt.name, opt.ty))
+                        .into_owned()
+                } else {
+                    self.fmt
+                        .bold(&format!("--{} <{}>", opt.name, opt.ty))
+                        .into_owned()
+                }
+            }
+            Taken::Flag(flag) => {
+                let flag = flag.spec();
+                if let Some(short) = flag.short {
+                    self.fmt
+                        .bold(&format!("--{}, -{short}", flag.name))
+                        .into_owned()
+                } else {
+                    self.fmt.bold(&format!("--{}", flag.name)).into_owned()
+                }
+            }
+            Taken::Arg(arg) => {
+                if arg.spec().example.is_some() {
+                    format!("<{}>", self.fmt.bold(arg.spec().name))
+                } else {
+                    format!("[{}]", self.fmt.bold(arg.spec().name))
+                }
+            }
+            Taken::Cmd(cmd) => self.fmt.bold(cmd.spec().name).into_owned(),
+        }
+    }
+
     fn build_options(&mut self) {
         if !self.has_options(true) {
             return;
@@ -267,28 +299,18 @@ impl<'a> HelpBuilder<'a> {
         self.fmt.write(&self.fmt.bold_underline("Options:\n"));
 
         let (width, offset, newline) =
-            self.calc_width_offset_newline(self.log.iter().filter_map(|x| match x {
-                Taken::Opt(x) => {
-                    let x = x.spec();
-                    Some(x.name.len() + 2 + if x.short.is_some() { 4 } else { 0 } + x.ty.len() + 3)
-                }
-                Taken::Flag(x) => {
-                    let x = x.spec();
-                    Some(x.name.len() + 2 + if x.short.is_some() { 4 } else { 0 })
-                }
-                _ => None,
-            }));
+            self.calc_width_offset_newline(|e| matches!(e, Taken::Opt(_) | Taken::Flag(_)));
         let mut known = HashSet::new();
         for entry in &self.log {
             let name = entry.name();
-            let (short, ty, doc, env, default) = match entry {
+            let (doc, env, default) = match entry {
                 Taken::Opt(opt) => {
                     let opt = opt.spec();
-                    (opt.short, Some(opt.ty), opt.doc, opt.env, opt.default)
+                    (opt.doc, opt.env, opt.default)
                 }
                 Taken::Flag(flag) => {
                     let flag = flag.spec();
-                    (flag.short, None, flag.doc, flag.env, None)
+                    (flag.doc, flag.env, None)
                 }
                 _ => continue,
             };
@@ -298,21 +320,9 @@ impl<'a> HelpBuilder<'a> {
             }
             known.insert(name);
 
-            let name = if let Some(short) = short {
-                self.fmt.bold(&format!("--{name}, -{short}")).into_owned()
-            } else {
-                self.fmt.bold(&format!("--{name}")).into_owned()
-            };
-            let name_and_type = if let Some(ty) = ty {
-                format!("{name} <{ty}>")
-            } else {
-                name
-            };
-            self.fmt.write(&format!(
-                "  {:width$}{newline}",
-                name_and_type,
-                width = width
-            ));
+            let name = self.entry_name(entry);
+            self.fmt
+                .write(&format!("  {:width$}{newline}", name, width = width));
             for line in self.doc_lines(doc) {
                 self.fmt
                     .write(&format!("{:offset$}{line}{newline}", "", offset = offset));
