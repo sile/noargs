@@ -95,10 +95,10 @@ pub const fn cmd(name: &'static str) -> CmdSpec {
 }
 
 /// Well-known flag (`--help, -h`) for printing help information.
-pub const HELP_FLAG: FlagSpec = flag("help").short('h').doc("Print help.");
+pub const HELP_FLAG: FlagSpec = flag("help").short('h').doc("Print help ('-f' for summary)");
 
 /// Well-known flag (`--version`) for printing version information.
-pub const VERSION_FLAG: FlagSpec = flag("version").doc("Print version.");
+pub const VERSION_FLAG: FlagSpec = flag("version").doc("Print version");
 
 /// Well-known flag (`--`) to indicate the end of options (named arguments).
 pub const OPTIONS_END_FLAG: FlagSpec =

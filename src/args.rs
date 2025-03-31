@@ -148,7 +148,7 @@ pub struct Metadata {
     pub help_mode: bool,
 
     /// If `true`, a full help text will be displayed.
-    pub detailed_help: bool,
+    pub full_help: bool,
 }
 
 impl Default for Metadata {
@@ -158,7 +158,7 @@ impl Default for Metadata {
             app_description: "",
             help_flag_name: Some("help"),
             help_mode: false,
-            detailed_help: false,
+            full_help: false,
         }
     }
 }
