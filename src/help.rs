@@ -306,9 +306,9 @@ Usage: <APP_NAME> [OPTIONS]
 
 Options:
   --help, -h:
-    Print help.
+    Print help ('-f' for summary)
   --version:
-    Print version.
+    Print version
 "#
         );
     }
@@ -337,7 +337,7 @@ Options:
 
 Options:
   --help, -h:
-    Print help.
+    Print help ('-f' for summary)
   --foo, -f <INTEGER>:
     An integer
     This is foo
@@ -373,7 +373,7 @@ Example:
 
 Options:
   --help, -h:
-    Print help.
+    Print help ('-f' for summary)
   --foo, -f <INTEGER>:
     An integer
 "#
@@ -428,7 +428,7 @@ Arguments:
 
 Options:
   --help, -h:
-    Print help.
+    Print help ('-f' for summary)
 "#
         );
     }
@@ -465,7 +465,7 @@ Commands:
 
 Options:
   --help, -h:
-    Print help.
+    Print help ('-f' for summary)
 "#
         );
     }
@@ -518,7 +518,7 @@ Arguments:
 
 Options:
   --help, -h:
-    Print help.
+    Print help ('-f' for summary)
 "#
         );
     }

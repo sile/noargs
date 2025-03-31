@@ -119,8 +119,11 @@ impl FlagSpec {
     ///
     /// Specifically, the following code is executed:
     /// ```no_run
+    /// # use noargs::Flag;
+    /// # let mut args = noargs::raw_args();
+    /// # let flag = noargs::HELP_FLAG.take_help(&mut args);
     /// args.metadata_mut().help_mode = true;
-    /// args.metadata_mut().help_flag_name = Some(self.name);
+    /// args.metadata_mut().help_flag_name = Some(flag.spec().name);
     /// if matches!(flag, Flag::Long { .. }) {
     ///     args.metadata_mut().full_help = true;
     /// }
