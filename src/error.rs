@@ -9,18 +9,51 @@ use crate::{Arg, Metadata, Opt, OptSpec, RawArgs, args::Taken, formatter::Format
 ///
 /// Additionally, any external errors that implement [`std::fmt::Display`] can be converted into this error.
 #[allow(missing_docs)]
+#[non_exhaustive]
 pub enum Error {
-    UnexpectedArg { metadata: Metadata, raw_arg: String },
-    UndefinedCommand { metadata: Metadata, raw_arg: String },
-    MissingCommand { metadata: Metadata },
-    ParseArgError { arg: Box<Arg>, reason: String },
-    MissingArg { arg: Box<Arg> },
-    ParseOptError { opt: Box<Opt>, reason: String },
-    MissingOpt { opt: Box<Opt> },
-    Other(Box<dyn std::fmt::Display>),
+    UnexpectedArg {
+        metadata: Metadata,
+        raw_arg: String,
+    },
+    UndefinedCommand {
+        metadata: Metadata,
+        raw_arg: String,
+    },
+    MissingCommand {
+        metadata: Metadata,
+    },
+    ParseArgError {
+        arg: Box<Arg>,
+        reason: String,
+    },
+    MissingArg {
+        arg: Box<Arg>,
+    },
+    ParseOptError {
+        opt: Box<Opt>,
+        reason: String,
+    },
+    MissingOpt {
+        opt: Box<Opt>,
+    },
+    Other {
+        metadata: Option<Metadata>,
+        error: Box<dyn std::fmt::Display>,
+    },
 }
 
 impl Error {
+    /// Makes an application specific error.
+    pub fn other<E>(args: &RawArgs, error: E) -> Self
+    where
+        E: 'static + std::fmt::Display,
+    {
+        Self::Other {
+            metadata: Some(args.metadata()),
+            error: Box::new(error),
+        }
+    }
+
     pub(crate) fn check_command_error(args: &RawArgs) -> Result<(), Error> {
         let Some(Taken::Cmd(cmd)) = args.log().last() else {
             return Ok(());
@@ -133,8 +166,18 @@ impl Error {
                     return fmt.finish();
                 }
             }
-            Error::Other(e) => {
-                fmt.write(&e.to_string());
+            Error::Other {
+                metadata: Some(metadata),
+                error,
+            } => {
+                fmt.write(&error.to_string());
+                *metadata
+            }
+            Error::Other {
+                metadata: None,
+                error,
+            } => {
+                fmt.write(&error.to_string());
                 return fmt.finish();
             }
         };
@@ -154,7 +197,10 @@ impl Error {
 
 impl<T: 'static + std::fmt::Display> From<T> for Error {
     fn from(error: T) -> Self {
-        Self::Other(Box::new(error))
+        Self::Other {
+            metadata: None,
+            error: Box::new(error),
+        }
     }
 }
 
