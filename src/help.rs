@@ -156,7 +156,14 @@ impl<'a> HelpBuilder<'a> {
         // [NOTE] Need to use `self.args.log()` instead of `self.log` here.
         for entry in self.args.log() {
             if let Some(example) = entry.example() {
-                self.fmt.write(&format!(" {example}"));
+                let example = if example.contains('"') && !example.contains('\'') {
+                    format!("'{}'", example)
+                } else if example.contains([' ', '\'']) {
+                    format!("{:?}", example)
+                } else {
+                    example.into_owned()
+                };
+                self.fmt.write(&format!(" {}", example));
             }
         }
         self.fmt.write("\n\n");
