@@ -183,13 +183,23 @@ impl Taken {
 
     pub fn example(&self) -> Option<Cow<'static, str>> {
         match self {
-            Taken::Arg(arg) => arg.spec().example.map(Cow::Borrowed),
+            Taken::Arg(arg) => arg.spec().example.map(Self::quote_if_need),
             Taken::Opt(opt) => opt
                 .spec()
                 .example
-                .map(|v| Cow::Owned(format!("--{} {v}", opt.spec().name))),
+                .map(|v| Cow::Owned(format!("--{} {}", opt.spec().name, Self::quote_if_need(v)))),
             Taken::Cmd(cmd) if cmd.is_present() => Some(Cow::Borrowed(cmd.spec().name)),
             _ => None,
+        }
+    }
+
+    fn quote_if_need(s: &'static str) -> Cow<'static, str> {
+        if s.contains('"') && !s.contains('\'') {
+            Cow::Owned(format!("'{}'", s))
+        } else if s.contains([' ', '\'']) {
+            Cow::Owned(format!("{:?}", s))
+        } else {
+            Cow::Borrowed(s)
         }
     }
 

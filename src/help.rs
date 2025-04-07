@@ -156,9 +156,10 @@ impl<'a> HelpBuilder<'a> {
         // [NOTE] Need to use `self.args.log()` instead of `self.log` here.
         for entry in self.args.log() {
             if let Some(example) = entry.example() {
-                self.fmt.write(&format!(" {example}"));
+                self.fmt.write(&format!(" {}", example));
             }
         }
+
         self.fmt.write("\n\n");
     }
 
