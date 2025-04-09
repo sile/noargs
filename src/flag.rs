@@ -168,9 +168,14 @@ impl Flag {
         }
     }
 
-    /// Returns `true` if this flag is set.
+    /// Returns `true` if this flag is present (set).
     pub fn is_present(self) -> bool {
         !matches!(self, Flag::None { .. })
+    }
+
+    /// Returns `Some(self)` if this flag is present (set).
+    pub fn present(self) -> Option<Self> {
+        self.is_present().then_some(self)
     }
 
     /// Returns the index at which the raw value associated with this flag was located in [`RawArgs`].

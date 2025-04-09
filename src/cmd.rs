@@ -93,6 +93,7 @@ impl Cmd {
     }
 
     /// Returns `Some(_)` if this subcommand is present.
+    #[deprecated(since = "0.2.2", note = "use `present()` instead")]
     pub fn ok(self) -> Option<Self> {
         self.is_present().then_some(self)
     }
@@ -126,9 +127,9 @@ mod tests {
     #[test]
     fn cmd_and_flag() {
         let mut args = args(&["test", "--foo", "run", "--foo"]);
-        if let Some(_cmd) = cmd("bar").take(&mut args).ok() {
+        if let Some(_cmd) = cmd("bar").take(&mut args).present() {
             panic!();
-        } else if let Some(cmd) = cmd("run").take(&mut args).ok() {
+        } else if let Some(cmd) = cmd("run").take(&mut args).present() {
             let flag = FlagSpec {
                 name: "foo",
                 min_index: cmd.index(),
