@@ -102,6 +102,11 @@ impl Cmd {
         matches!(self, Self::Some { .. })
     }
 
+    /// Returns `Some(self)` if this subcommand is present.
+    pub fn present(self) -> Option<Self> {
+        self.is_present().then_some(self)
+    }
+
     /// Returns the index at which the raw value associated with this subcommand was located in [`RawArgs`].
     pub fn index(self) -> Option<usize> {
         if let Self::Some { index, .. } = self {
