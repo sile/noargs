@@ -346,6 +346,11 @@ impl Opt {
         !matches!(self, Opt::None { .. } | Opt::MissingValue { .. })
     }
 
+    /// Returns `Some(self)` if this option is present.
+    pub fn present(self) -> Option<Self> {
+        self.is_present().then_some(self)
+    }
+
     /// Returns the raw value of this option.
     #[deprecated(since = "0.3.0", note = "please use `present()` and `value()` instead")]
     pub fn raw_value(&self) -> Option<&str> {

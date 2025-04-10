@@ -200,6 +200,11 @@ impl Arg {
         !matches!(self, Self::None { .. })
     }
 
+    /// Returns `Some(self)` if this argument is present.
+    pub fn present(self) -> Option<Self> {
+        self.is_present().then_some(self)
+    }
+
     /// Returns the raw value of this argument.
     #[deprecated(since = "0.3.0", note = "please use `present()` and `value()` instead")]
     pub fn raw_value(&self) -> Option<&str> {

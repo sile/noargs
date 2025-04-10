@@ -93,6 +93,7 @@ impl Cmd {
     }
 
     /// Returns `Some(_)` if this subcommand is present.
+    #[deprecated(since = "0.3.0", note = "please use `present()` instead")]
     pub fn ok(self) -> Option<Self> {
         self.is_present().then_some(self)
     }
@@ -100,6 +101,11 @@ impl Cmd {
     /// Returns `true` if this subcommand is present.
     pub fn is_present(self) -> bool {
         matches!(self, Self::Some { .. })
+    }
+
+    /// Returns `Some(self)` if this subcommand is present.
+    pub fn present(self) -> Option<Self> {
+        self.is_present().then_some(self)
     }
 
     /// Returns the index at which the raw value associated with this subcommand was located in [`RawArgs`].
