@@ -479,9 +479,24 @@ mod tests {
         let mut args = args(&["test", "--foo=1", "-f", "2", "--foo"]);
         let mut opt = opt("foo");
         opt.short = Some('f');
-        assert_eq!(opt.take(&mut args).parse::<usize>().ok(), Some(1));
-        assert_eq!(opt.take(&mut args).parse::<usize>().ok(), Some(2));
-        assert_eq!(opt.take(&mut args).parse::<usize>().ok(), None);
+        assert_eq!(
+            opt.take(&mut args)
+                .then(|o| o.value().parse::<usize>())
+                .ok(),
+            Some(1)
+        );
+        assert_eq!(
+            opt.take(&mut args)
+                .then(|o| o.value().parse::<usize>())
+                .ok(),
+            Some(2)
+        );
+        assert_eq!(
+            opt.take(&mut args)
+                .then(|o| o.value().parse::<usize>())
+                .ok(),
+            None
+        );
     }
 
     fn args(raw_args: &[&str]) -> RawArgs {

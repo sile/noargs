@@ -277,7 +277,7 @@ Try '--help' for more information."#
         args.metadata_mut().help_flag_name = None;
         let e = arg("INTEGER")
             .take(&mut args)
-            .parse::<usize>()
+            .then(|a| a.value().parse::<usize>())
             .expect_err("error");
         assert_eq!(
             e.to_string(false),
@@ -292,7 +292,7 @@ Try '--help' for more information."#
         let e = opt("foo")
             .short('f')
             .take(&mut args)
-            .parse::<usize>()
+            .then(|o| o.value().parse::<usize>())
             .expect_err("error");
         assert_eq!(
             e.to_string(false),
@@ -306,7 +306,7 @@ Try '--help' for more information."#
         args.metadata_mut().help_flag_name = None;
         let e = arg("INTEGER")
             .take(&mut args)
-            .parse::<usize>()
+            .then(|a| a.value().parse::<usize>())
             .expect_err("error");
         assert_eq!(e.to_string(false), "missing argument 'INTEGER'");
     }
@@ -318,7 +318,7 @@ Try '--help' for more information."#
         let e = opt("foo")
             .short('f')
             .take(&mut args)
-            .parse::<usize>()
+            .then(|o| o.value().parse::<usize>())
             .expect_err("error");
         assert_eq!(e.to_string(false), "missing '-f' value");
     }

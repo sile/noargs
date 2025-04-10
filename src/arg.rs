@@ -338,9 +338,24 @@ mod tests {
     fn parse_arg() {
         let mut args = args(&["test", "1", "not a number"]);
         let arg = arg("ARG");
-        assert_eq!(arg.take(&mut args).parse::<usize>().ok(), Some(1));
-        assert_eq!(arg.take(&mut args).parse::<usize>().ok(), None);
-        assert_eq!(arg.take(&mut args).parse::<usize>().ok(), None);
+        assert_eq!(
+            arg.take(&mut args)
+                .then(|a| a.value().parse::<usize>())
+                .ok(),
+            Some(1)
+        );
+        assert_eq!(
+            arg.take(&mut args)
+                .then(|a| a.value().parse::<usize>())
+                .ok(),
+            None
+        );
+        assert_eq!(
+            arg.take(&mut args)
+                .then(|a| a.value().parse::<usize>())
+                .ok(),
+            None
+        );
     }
 
     fn args(raw_args: &[&str]) -> RawArgs {
