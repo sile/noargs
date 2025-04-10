@@ -122,16 +122,8 @@ impl<'a> HelpBuilder<'a> {
             };
             let arg = arg.spec();
 
-            if last == Some(arg) {
-                if !self.fmt.text().ends_with("...") {
-                    self.fmt.write("...");
-                }
-            } else if arg.example.is_some() {
-                // Required argument.
-                self.fmt.write(&format!(" <{}>", arg.name));
-            } else {
-                // Optional argument.
-                self.fmt.write(&format!(" [{}]", arg.name));
+            if last != Some(arg) {
+                self.fmt.write(&format!(" {}", arg.name));
             }
             last = Some(arg);
         }
@@ -280,11 +272,7 @@ impl<'a> HelpBuilder<'a> {
                 self.fmt.bold(&name).into_owned()
             }
             Taken::Arg(arg) => {
-                if arg.spec().example.is_some() {
-                    format!("<{}>", self.fmt.bold(arg.spec().name))
-                } else {
-                    format!("[{}]", self.fmt.bold(arg.spec().name))
-                }
+                format!("{}", self.fmt.bold(arg.spec().name))
             }
             Taken::Cmd(cmd) => self.fmt.bold(cmd.spec().name).into_owned(),
         }
@@ -486,14 +474,14 @@ Options:
         args.metadata_mut().app_description = "";
         HELP_FLAG.take(&mut args);
         ArgSpec {
-            name: "REQUIRED",
+            name: "<REQUIRED>",
             doc: "Foo\nDetail is foo",
             example: Some("3"),
             ..Default::default()
         }
         .take(&mut args);
         ArgSpec {
-            name: "OPTIONAL",
+            name: "[OPTIONAL]",
             doc: "Bar",
             default: Some("9"),
             ..Default::default()
@@ -501,7 +489,7 @@ Options:
         .take(&mut args);
         for _ in 0..3 {
             ArgSpec {
-                name: "MULTI",
+                name: "[MULTI]...",
                 doc: "Baz",
                 ..Default::default()
             }
@@ -520,7 +508,7 @@ Example:
 Arguments:
   <REQUIRED> Foo
   [OPTIONAL] Bar [default: 9]
-  [MULTI]    Baz
+  [MULTI]... Baz
 
 Options:
   -h, --help Print help ('--help' for full help, '-h' for summary)
@@ -546,7 +534,7 @@ Arguments:
     Bar
     [default: 9]
 
-  [MULTI]
+  [MULTI]...
     Baz
 
 Options:
@@ -635,7 +623,7 @@ Options:
         }
         .take(&mut args);
         ArgSpec {
-            name: "KEY",
+            name: "<KEY>",
             doc: "A key string",
             example: Some("hi"),
             min_index: cmd.index(),

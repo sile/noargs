@@ -38,10 +38,6 @@ impl Formatter {
         }
     }
 
-    pub fn text(&self) -> &str {
-        &self.text
-    }
-
     pub fn finish(self) -> String {
         self.text
     }

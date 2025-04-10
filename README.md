@@ -47,7 +47,7 @@ fn main() -> noargs::Result<()> {
     // Handle application specific args.
     let foo: usize = noargs::opt("foo").default("1").take(&mut args).parse()?;
     let bar: bool = noargs::flag("bar").take(&mut args).is_present();
-    let baz: Option<String> = noargs::arg("baz").take(&mut args).parse_if_present()?;
+    let baz: Option<String> = noargs::arg("[BAZ]").take(&mut args).parse_if_present()?;
 
     // Check unexpected args and build help text if need.
     if let Some(help) = args.finish()? {
