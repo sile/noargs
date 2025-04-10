@@ -150,39 +150,33 @@ pub enum Arg {
 
 impl Arg {
     /// Parse the value of this argument.
+    #[deprecated(since = "0.3.0", note = "please use `then()` instead")]
     pub fn parse<T>(&self) -> Result<T, Error>
     where
         T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
-        let value = self
-            .is_present()
-            .then_some(self.value())
-            .ok_or_else(|| Error::MissingArg {
-                arg: Box::new(self.clone()),
-            })?;
-        self.parse_with(|_| value.parse())
+        self.clone().then(|arg| arg.value().parse())
     }
 
     /// Parse the value of this argument if it is present.
+    #[deprecated(since = "0.3.0", note = "please use `present_and_then()` instead")]
     pub fn parse_if_present<T>(&self) -> Result<Option<T>, Error>
     where
         T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
-        self.is_present().then(|| self.parse()).transpose()
+        self.clone().present_and_then(|arg| arg.value().parse())
     }
 
     /// Similar to [`Arg::parse()`], but more flexible as this method allows you to specify an arbitrary parsing function.
+    #[deprecated(since = "0.3.0", note = "please use `then()` instead")]
     pub fn parse_with<F, T, E>(&self, f: F) -> Result<T, Error>
     where
         F: FnOnce(&Self) -> Result<T, E>,
         E: std::fmt::Display,
     {
-        f(self).map_err(|e| Error::InvalidArg {
-            arg: Box::new(self.clone()),
-            reason: e.to_string(),
-        })
+        self.clone().then(|arg| f(&arg))
     }
 
     /// Returns the specification of this argument.
@@ -245,6 +239,15 @@ impl Arg {
             arg: Box::new(self),
             reason: e.to_string(),
         })
+    }
+
+    /// Shorthand for `self.present().map(|arg| arg.then(f)).transpose()`.
+    pub fn present_and_then<F, T, E>(self, f: F) -> Result<Option<T>, Error>
+    where
+        F: FnOnce(Self) -> Result<T, E>,
+        E: std::fmt::Display,
+    {
+        self.present().map(|arg| arg.then(f)).transpose()
     }
 
     /// Returns the raw value of this argument.
