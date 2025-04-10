@@ -76,7 +76,7 @@ pub fn raw_args() -> RawArgs {
 ///
 /// # Recommended Naming Convention
 ///
-/// - Requierd: `<NAME>`
+/// - Required: `<NAME>`
 /// - Optional: `[NAME]`
 /// - Zero or more: `[NAME]...`
 /// - One or more: `<NAME>...`
