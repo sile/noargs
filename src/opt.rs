@@ -347,13 +347,13 @@ impl Opt {
     }
 
     /// Returns the raw value of this option.
-    #[deprecated(since = "0.2.2", note = "please use `present()` and `value()` instead")]
+    #[deprecated(since = "0.3.0", note = "please use `present()` and `value()` instead")]
     pub fn raw_value(&self) -> Option<&str> {
         self.is_present().then_some(self.value())
     }
 
     /// Returns the raw value of this option, or an empty string if not present.
-    #[deprecated(since = "0.2.2", note = "please use `value()` instead")]
+    #[deprecated(since = "0.3.0", note = "please use `value()` instead")]
     pub fn raw_value_or_empty(&self) -> &str {
         self.value()
     }
