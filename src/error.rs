@@ -106,7 +106,7 @@ impl Error {
                 fmt.write(&format!(
                     "argument '{}' has an invalid value {:?}: {reason}",
                     fmt.bold(arg.spec().name),
-                    arg.raw_value().unwrap_or_default()
+                    arg.value()
                 ));
                 if let Some(metadata) = arg.metadata() {
                     metadata
@@ -143,7 +143,7 @@ impl Error {
                 };
                 fmt.write(&format!(
                     "{name} has an invalid value {:?}: {reason}",
-                    opt.raw_value().unwrap_or_default()
+                    opt.value()
                 ));
                 if let Some(metadata) = opt.metadata() {
                     metadata
