@@ -135,12 +135,16 @@ impl OptSpec {
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
                 if let Some(mut pending) = pending.take() {
                     match &mut pending {
-                        Opt::Long {
-                            raw_value: value, ..
+                        Opt::Long { value, .. } | Opt::Short { value, .. } => {
+                            if let Some(v) = raw_arg.value.take() {
+                                *value = v;
+                            } else {
+                                return Opt::MissingValue {
+                                    spec: self,
+                                    long: matches!(pending, Opt::Long { .. }),
+                                };
+                            }
                         }
-                        | Opt::Short {
-                            raw_value: value, ..
-                        } => *value = raw_arg.value.take(),
                         _ => unreachable!(),
                     }
                     return pending;
@@ -165,7 +169,7 @@ impl OptSpec {
                                 spec: self,
                                 metadata,
                                 index,
-                                raw_value: None,
+                                value: "".to_owned(),
                             });
                         }
                         Some('=') => {
@@ -175,7 +179,7 @@ impl OptSpec {
                                 spec: self,
                                 metadata,
                                 index,
-                                raw_value: Some(opt_value),
+                                value: opt_value,
                             };
                         }
                         Some(_) => {}
@@ -193,7 +197,7 @@ impl OptSpec {
                             spec: self,
                             metadata,
                             index,
-                            raw_value: None,
+                            value: "".to_owned(),
                         });
                     }
                     Some('=') => {
@@ -204,15 +208,18 @@ impl OptSpec {
                             spec: self,
                             metadata,
                             index,
-                            raw_value: Some(opt_value),
+                            value: opt_value,
                         };
                     }
                     Some(_) => {}
                 }
             }
 
-            if let Some(opt) = pending {
-                opt
+            if pending.is_some() {
+                Opt::MissingValue {
+                    spec: self,
+                    long: matches!(pending, Some(Opt::Long { .. })),
+                }
             } else if let Some(value) = self
                 .env
                 .and_then(|name| std::env::var(name).ok())
@@ -221,7 +228,7 @@ impl OptSpec {
                 Opt::Env {
                     spec: self,
                     metadata,
-                    raw_value: value,
+                    value,
                 }
             } else if self.default.is_some() {
                 Opt::Default {
@@ -254,18 +261,18 @@ pub enum Opt {
         spec: OptSpec,
         metadata: Metadata,
         index: usize,
-        raw_value: Option<String>,
+        value: String,
     },
     Short {
         spec: OptSpec,
         metadata: Metadata,
         index: usize,
-        raw_value: Option<String>,
+        value: String,
     },
     Env {
         spec: OptSpec,
         metadata: Metadata,
-        raw_value: String,
+        value: String,
     },
     Default {
         spec: OptSpec,
@@ -274,6 +281,10 @@ pub enum Opt {
     Example {
         spec: OptSpec,
         metadata: Metadata,
+    },
+    MissingValue {
+        spec: OptSpec,
+        long: bool,
     },
     None {
         spec: OptSpec,
@@ -287,9 +298,12 @@ impl Opt {
         T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
-        let value = self.raw_value().ok_or_else(|| Error::MissingOpt {
-            opt: Box::new(self.clone()),
-        })?;
+        let value = self
+            .is_present()
+            .then_some(self.value())
+            .ok_or_else(|| Error::MissingOpt {
+                opt: Box::new(self.clone()),
+            })?;
         self.parse_with(|_| value.parse())
     }
 
@@ -322,31 +336,36 @@ impl Opt {
             | Opt::Env { spec, .. }
             | Opt::Default { spec, .. }
             | Opt::Example { spec, .. }
+            | Opt::MissingValue { spec, .. }
             | Opt::None { spec } => *spec,
         }
     }
 
     /// Returns `true` if this option has a value.
     pub fn is_present(&self) -> bool {
-        !matches!(self, Opt::None { .. })
+        !matches!(self, Opt::None { .. } | Opt::MissingValue { .. })
     }
 
     /// Returns the raw value of this option.
+    #[deprecated(since = "0.2.2", note = "please use `present()` and `value()` instead")]
     pub fn raw_value(&self) -> Option<&str> {
-        match self {
-            Opt::Long { raw_value, .. } | Opt::Short { raw_value, .. } => {
-                raw_value.as_ref().map(|v| v.as_str())
-            }
-            Opt::Env { raw_value, .. } => Some(raw_value),
-            Opt::Default { spec, .. } => spec.default,
-            Opt::Example { spec, .. } => spec.example,
-            Opt::None { .. } => None,
-        }
+        self.is_present().then_some(self.value())
     }
 
     /// Returns the raw value of this option, or an empty string if not present.
+    #[deprecated(since = "0.2.2", note = "please use `value()` instead")]
     pub fn raw_value_or_empty(&self) -> &str {
-        self.raw_value().unwrap_or("")
+        self.value()
+    }
+
+    /// Returns the raw value of this option, or an empty string if not present.
+    pub fn value(&self) -> &str {
+        match self {
+            Opt::Long { value, .. } | Opt::Short { value, .. } | Opt::Env { value, .. } => value,
+            Opt::Default { spec, .. } => spec.default.unwrap_or(""),
+            Opt::Example { spec, .. } => spec.example.unwrap_or(""),
+            Opt::MissingValue { .. } | Opt::None { .. } => "",
+        }
     }
 
     /// Returns the index at which the raw value associated with the name of this option was located in [`RawArgs`].
@@ -365,7 +384,7 @@ impl Opt {
             | Opt::Env { metadata, .. }
             | Opt::Default { metadata, .. }
             | Opt::Example { metadata, .. } => Some(*metadata),
-            Opt::None { .. } => None,
+            Opt::MissingValue { .. } | Opt::None { .. } => None,
         }
     }
 }

@@ -106,7 +106,7 @@ impl Error {
                 fmt.write(&format!(
                     "argument '{}' has an invalid value {:?}: {reason}",
                     fmt.bold(arg.spec().name),
-                    arg.raw_value().unwrap_or_default()
+                    arg.value()
                 ));
                 if let Some(metadata) = arg.metadata() {
                     metadata
@@ -143,7 +143,7 @@ impl Error {
                 };
                 fmt.write(&format!(
                     "{name} has an invalid value {:?}: {reason}",
-                    opt.raw_value().unwrap_or_default()
+                    opt.value()
                 ));
                 if let Some(metadata) = opt.metadata() {
                     metadata
@@ -152,14 +152,26 @@ impl Error {
                 }
             }
             Error::MissingOpt { opt } => {
-                let name = match &**opt {
-                    Opt::Short {
-                        spec: OptSpec { short: Some(c), .. },
-                        ..
-                    } => fmt.bold(&format!("-{c}")).into_owned(),
-                    _ => fmt.bold(&format!("--{}", opt.spec().name)).into_owned(),
+                match **opt {
+                    Opt::MissingValue {
+                        spec:
+                            OptSpec {
+                                short: Some(name), ..
+                            },
+                        long: false,
+                    } => {
+                        let name = fmt.bold(&format!("-{name}")).into_owned();
+                        fmt.write(&format!("missing '{name}' value"));
+                    }
+                    Opt::MissingValue { spec, .. } => {
+                        let name = fmt.bold(&format!("--{}", spec.name)).into_owned();
+                        fmt.write(&format!("missing '{name}' value"));
+                    }
+                    _ => {
+                        let name = fmt.bold(&format!("--{}", opt.spec().name)).into_owned();
+                        fmt.write(&format!("missing '{name}' option"));
+                    }
                 };
-                fmt.write(&format!("missing '{name}' value"));
                 if let Some(metadata) = opt.metadata() {
                     metadata
                 } else {

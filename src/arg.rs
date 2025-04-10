@@ -102,7 +102,7 @@ impl ArgSpec {
                         spec: self,
                         metadata,
                         index,
-                        raw_value: value,
+                        value,
                     };
                 };
             }
@@ -133,7 +133,7 @@ pub enum Arg {
         spec: ArgSpec,
         metadata: Metadata,
         index: usize,
-        raw_value: String,
+        value: String,
     },
     Default {
         spec: ArgSpec,
@@ -155,9 +155,12 @@ impl Arg {
         T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
-        let value = self.raw_value().ok_or_else(|| Error::MissingArg {
-            arg: Box::new(self.clone()),
-        })?;
+        let value = self
+            .is_present()
+            .then_some(self.value())
+            .ok_or_else(|| Error::MissingArg {
+                arg: Box::new(self.clone()),
+            })?;
         self.parse_with(|_| value.parse())
     }
 
@@ -198,18 +201,25 @@ impl Arg {
     }
 
     /// Returns the raw value of this argument.
+    #[deprecated(since = "0.2.2", note = "please use `present()` and `value()` instead")]
     pub fn raw_value(&self) -> Option<&str> {
-        match self {
-            Arg::Positional { raw_value, .. } => Some(raw_value.as_str()),
-            Arg::Default { spec, .. } => spec.default,
-            Arg::Example { spec, .. } => spec.example,
-            Arg::None { .. } => None,
-        }
+        self.is_present().then_some(self.value())
     }
 
     /// Returns the raw value of this argument, or an empty string if not present.
+    #[deprecated(since = "0.2.2", note = "please use `value()` instead")]
     pub fn raw_value_or_empty(&self) -> &str {
-        self.raw_value().unwrap_or("")
+        self.value()
+    }
+
+    /// Returns the raw value of this argument, or an empty string if not present.
+    pub fn value(&self) -> &str {
+        match self {
+            Arg::Positional { value, .. } => value.as_str(),
+            Arg::Default { spec, .. } => spec.default.unwrap_or(""),
+            Arg::Example { spec, .. } => spec.example.unwrap_or(""),
+            Arg::None { .. } => "",
+        }
     }
 
     /// Returns the index at which the raw value of this argument was located in [`RawArgs`].
