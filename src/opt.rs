@@ -322,7 +322,7 @@ impl Opt {
         F: FnOnce(&Self) -> Result<T, E>,
         E: std::fmt::Display,
     {
-        f(self).map_err(|e| Error::ParseOptError {
+        f(self).map_err(|e| Error::InvalidOpt {
             opt: Box::new(self.clone()),
             reason: e.to_string(),
         })

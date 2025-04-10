@@ -22,14 +22,14 @@ pub enum Error {
     MissingCommand {
         metadata: Metadata,
     },
-    ParseArgError {
+    InvalidArg {
         arg: Box<Arg>,
         reason: String,
     },
     MissingArg {
         arg: Box<Arg>,
     },
-    ParseOptError {
+    InvalidOpt {
         opt: Box<Opt>,
         reason: String,
     },
@@ -102,7 +102,7 @@ impl Error {
                 fmt.write("command is not specified");
                 *metadata
             }
-            Error::ParseArgError { arg, reason } => {
+            Error::InvalidArg { arg, reason } => {
                 fmt.write(&format!(
                     "argument '{}' has an invalid value {:?}: {reason}",
                     fmt.bold(arg.spec().name),
@@ -122,7 +122,7 @@ impl Error {
                     return fmt.finish();
                 }
             }
-            Error::ParseOptError { opt, reason } => {
+            Error::InvalidOpt { opt, reason } => {
                 let name = match &**opt {
                     Opt::Short {
                         spec: OptSpec { short: Some(c), .. },

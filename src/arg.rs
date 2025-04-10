@@ -179,7 +179,7 @@ impl Arg {
         F: FnOnce(&Self) -> Result<T, E>,
         E: std::fmt::Display,
     {
-        f(self).map_err(|e| Error::ParseArgError {
+        f(self).map_err(|e| Error::InvalidArg {
             arg: Box::new(self.clone()),
             reason: e.to_string(),
         })
@@ -230,7 +230,7 @@ impl Arg {
     /// # Errors
     ///
     /// - Returns [`Error::MissingArg`] if `self.is_present()` is `false` (argument is missing)
-    /// - Returns [`Error::ParseArgError`] if `f(self)` returns `Err(_)` (validation or conversion failed)
+    /// - Returns [`Error::InvalidArg`] if `f(self)` returns `Err(_)` (validation or conversion failed)
     pub fn then<F, T, E>(self, f: F) -> Result<T, Error>
     where
         F: FnOnce(Self) -> Result<T, E>,
@@ -241,7 +241,7 @@ impl Arg {
                 arg: Box::new(self),
             });
         }
-        f(self.clone()).map_err(|e| Error::ParseArgError {
+        f(self.clone()).map_err(|e| Error::InvalidArg {
             arg: Box::new(self),
             reason: e.to_string(),
         })
