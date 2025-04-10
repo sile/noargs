@@ -22,6 +22,7 @@ pub enum Error {
     MissingCommand {
         metadata: Metadata,
     },
+    // TODO: rename (InvalidArgError)
     ParseArgError {
         arg: Box<Arg>,
         reason: String,

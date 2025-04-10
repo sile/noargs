@@ -192,9 +192,41 @@ impl Arg {
         }
     }
 
-    /// Returns `true` if this argument has a value.
+    /// Returns `true` if the value of this argument is present.
     pub fn is_present(&self) -> bool {
         !matches!(self, Self::None { .. })
+    }
+
+    /// Returns `Some(self)` if the value of this argument is present.
+    pub fn present(self) -> Option<Self> {
+        self.is_present().then_some(self)
+    }
+
+    /// Applies additional conversion or validation to the argument, or returns an error if the argument is absent.
+    pub fn then<F, T, E>(self, f: F) -> Result<T, Error>
+    where
+        F: FnOnce(Self) -> Result<T, E>,
+        E: std::fmt::Display,
+    {
+        if !self.is_present() {
+            Err(Error::MissingArg {
+                arg: Box::new(self),
+            })
+        } else {
+            f(self.clone()).map_err(|e| Error::ParseArgError {
+                arg: Box::new(self),
+                reason: e.to_string(),
+            })
+        }
+    }
+
+    /// Shorthand for `self.present().map(|x| x.then(f)).transpose()`.
+    pub fn present_and_then<F, T, E>(self, f: F) -> Result<Option<T>, Error>
+    where
+        F: FnOnce(Self) -> Result<T, E>,
+        E: std::fmt::Display,
+    {
+        self.present().map(|a| a.then(f)).transpose()
     }
 
     /// Returns the raw value of this argument.
