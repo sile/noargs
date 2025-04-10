@@ -30,9 +30,12 @@
 //!     noargs::HELP_FLAG.take_help(&mut args);
 //!
 //!     // Handle application specific args.
-//!     let foo: usize = noargs::opt("foo").default("1").take(&mut args).parse()?;
-//!     let bar: bool = noargs::flag("bar").take(&mut args).is_present();
-//!     let baz: Option<String> = noargs::arg("[BAZ]").take(&mut args).parse_if_present()?;
+//!     let foo: usize = noargs::opt("foo")
+//!         .default("1").take(&mut args).then(|o| o.value().parse())?;
+//!     let bar: bool = noargs::flag("bar")
+//!         .take(&mut args).is_present();
+//!     let baz: Option<String> = noargs::arg("[BAZ]")
+//!         .take(&mut args).present_and_then(|a| a.value().parse())?;
 //!
 //!     // Check unexpected args and build help text if need.
 //!     if let Some(help) = args.finish()? {

@@ -150,39 +150,33 @@ pub enum Arg {
 
 impl Arg {
     /// Parse the value of this argument.
+    #[deprecated(since = "0.3.0", note = "please use `then()` instead")]
     pub fn parse<T>(&self) -> Result<T, Error>
     where
         T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
-        let value = self
-            .is_present()
-            .then_some(self.value())
-            .ok_or_else(|| Error::MissingArg {
-                arg: Box::new(self.clone()),
-            })?;
-        self.parse_with(|_| value.parse())
+        self.clone().then(|arg| arg.value().parse())
     }
 
     /// Parse the value of this argument if it is present.
+    #[deprecated(since = "0.3.0", note = "please use `present_and_then()` instead")]
     pub fn parse_if_present<T>(&self) -> Result<Option<T>, Error>
     where
         T: std::str::FromStr,
         T::Err: std::fmt::Display,
     {
-        self.is_present().then(|| self.parse()).transpose()
+        self.clone().present_and_then(|arg| arg.value().parse())
     }
 
     /// Similar to [`Arg::parse()`], but more flexible as this method allows you to specify an arbitrary parsing function.
+    #[deprecated(since = "0.3.0", note = "please use `then()` instead")]
     pub fn parse_with<F, T, E>(&self, f: F) -> Result<T, Error>
     where
         F: FnOnce(&Self) -> Result<T, E>,
         E: std::fmt::Display,
     {
-        f(self).map_err(|e| Error::ParseArgError {
-            arg: Box::new(self.clone()),
-            reason: e.to_string(),
-        })
+        self.clone().then(|arg| f(&arg))
     }
 
     /// Returns the specification of this argument.
@@ -203,6 +197,57 @@ impl Arg {
     /// Returns `Some(self)` if this argument is present.
     pub fn present(self) -> Option<Self> {
         self.is_present().then_some(self)
+    }
+
+    /// Applies additional conversion or validation to the argument.
+    ///
+    /// This method allows for chaining transformations and validations when an argument is present.
+    /// It first checks if the argument has a value and then applies the provided function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut args = noargs::RawArgs::new(["example", "42"].iter().map(|a| a.to_string()));
+    /// let arg = noargs::arg("<NUMBER>").take(&mut args);
+    ///
+    /// // Parse as number and ensure it's positive
+    /// let num = arg.then(|arg| -> Result<_, Box<dyn std::error::Error>> {
+    ///     let n: i32 = arg.value().parse()?;
+    ///     if n <= 0 {
+    ///         return Err("number must be positive".into());
+    ///     }
+    ///     Ok(n)
+    /// })?;
+    /// # Ok::<(), noargs::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`Error::MissingArg`] if `self.is_present()` is `false` (argument is missing)
+    /// - Returns [`Error::InvalidArg`] if `f(self)` returns `Err(_)` (validation or conversion failed)
+    pub fn then<F, T, E>(self, f: F) -> Result<T, Error>
+    where
+        F: FnOnce(Self) -> Result<T, E>,
+        E: std::fmt::Display,
+    {
+        if !self.is_present() {
+            return Err(Error::MissingArg {
+                arg: Box::new(self),
+            });
+        }
+        f(self.clone()).map_err(|e| Error::InvalidArg {
+            arg: Box::new(self),
+            reason: e.to_string(),
+        })
+    }
+
+    /// Shorthand for `self.present().map(|arg| arg.then(f)).transpose()`.
+    pub fn present_and_then<F, T, E>(self, f: F) -> Result<Option<T>, Error>
+    where
+        F: FnOnce(Self) -> Result<T, E>,
+        E: std::fmt::Display,
+    {
+        self.present().map(|arg| arg.then(f)).transpose()
     }
 
     /// Returns the raw value of this argument.
@@ -293,9 +338,24 @@ mod tests {
     fn parse_arg() {
         let mut args = args(&["test", "1", "not a number"]);
         let arg = arg("ARG");
-        assert_eq!(arg.take(&mut args).parse::<usize>().ok(), Some(1));
-        assert_eq!(arg.take(&mut args).parse::<usize>().ok(), None);
-        assert_eq!(arg.take(&mut args).parse::<usize>().ok(), None);
+        assert_eq!(
+            arg.take(&mut args)
+                .then(|a| a.value().parse::<usize>())
+                .ok(),
+            Some(1)
+        );
+        assert_eq!(
+            arg.take(&mut args)
+                .then(|a| a.value().parse::<usize>())
+                .ok(),
+            None
+        );
+        assert_eq!(
+            arg.take(&mut args)
+                .then(|a| a.value().parse::<usize>())
+                .ok(),
+            None
+        );
     }
 
     fn args(raw_args: &[&str]) -> RawArgs {
