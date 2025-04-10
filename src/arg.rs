@@ -30,7 +30,7 @@ pub struct ArgSpec {
 impl ArgSpec {
     /// The default specification.
     pub const DEFAULT: Self = Self {
-        name: "ARGUMENT",
+        name: "<ARGUMENT>",
         doc: "",
         default: None,
         example: None,

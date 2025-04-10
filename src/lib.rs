@@ -73,6 +73,13 @@ pub fn raw_args() -> RawArgs {
 }
 
 /// Makes an [`ArgSpec`] instance with a specified name.
+///
+/// # Recommended Naming Convention
+///
+/// - Requierd: `<NAME>`
+/// - Optional: `[NAME]`
+/// - Zero or more: `[NAME]...`
+/// - One or more: `<NAME>...`
 pub const fn arg(name: &'static str) -> ArgSpec {
     ArgSpec::new(name)
 }
