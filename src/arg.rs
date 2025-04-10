@@ -205,6 +205,48 @@ impl Arg {
         self.is_present().then_some(self)
     }
 
+    /// Applies additional conversion or validation to the argument.
+    ///
+    /// This method allows for chaining transformations and validations when an argument is present.
+    /// It first checks if the argument has a value and then applies the provided function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut args = noargs::RawArgs::new(["example", "42"].iter().map(|a| a.to_string()));
+    /// let arg = noargs::arg("<NUMBER>").take(&mut args);
+    ///
+    /// // Parse as number and ensure it's positive
+    /// let num = arg.then(|a| -> Result<_, Box<dyn std::error::Error>> {
+    ///     let n: i32 = a.value().parse()?;
+    ///     if n <= 0 {
+    ///         return Err("number must be positive".into());
+    ///     }
+    ///     Ok(n)
+    /// })?;
+    /// # Ok::<(), noargs::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`Error::MissingArg`] if `self.is_present()` is `false` (argument is missing)
+    /// - Returns [`Error::ParseArgError`] if `f(self)` returns `Err(_)` (validation or conversion failed)
+    pub fn then<F, T, E>(self, f: F) -> Result<T, Error>
+    where
+        F: FnOnce(Self) -> Result<T, E>,
+        E: std::fmt::Display,
+    {
+        if !self.is_present() {
+            return Err(Error::MissingArg {
+                arg: Box::new(self),
+            });
+        }
+        f(self.clone()).map_err(|e| Error::ParseArgError {
+            arg: Box::new(self),
+            reason: e.to_string(),
+        })
+    }
+
     /// Returns the raw value of this argument.
     #[deprecated(since = "0.3.0", note = "please use `present()` and `value()` instead")]
     pub fn raw_value(&self) -> Option<&str> {
