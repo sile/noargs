@@ -211,8 +211,8 @@ impl Arg {
     /// let arg = noargs::arg("<NUMBER>").take(&mut args);
     ///
     /// // Parse as number and ensure it's positive
-    /// let num = arg.then(|a| -> Result<_, Box<dyn std::error::Error>> {
-    ///     let n: i32 = a.value().parse()?;
+    /// let num = arg.then(|arg| -> Result<_, Box<dyn std::error::Error>> {
+    ///     let n: i32 = arg.value().parse()?;
     ///     if n <= 0 {
     ///         return Err("number must be positive".into());
     ///     }
