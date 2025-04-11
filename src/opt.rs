@@ -185,33 +185,29 @@ impl OptSpec {
                         Some(_) => {}
                     }
                     continue;
-                } else if value[1..].chars().next() != self.short {
-                    continue;
                 }
 
                 // Short name option.
-                match value[1..].chars().nth(1) {
-                    None => {
-                        raw_arg.value = None;
-                        pending = Some(Opt::Short {
-                            spec: self,
-                            metadata,
-                            index,
-                            value: "".to_owned(),
-                        });
-                    }
-                    Some('=') => {
-                        let opt_name_len = self.short.map(|c| c.len_utf8()).unwrap_or(0);
-                        let opt_value = value[1 + opt_name_len + 1..].to_owned();
-                        raw_arg.value = None;
-                        return Opt::Short {
-                            spec: self,
-                            metadata,
-                            index,
-                            value: opt_value,
-                        };
-                    }
-                    Some(_) => {}
+                let Some(value) = self.short.and_then(|c| value[1..].strip_prefix(c)) else {
+                    continue;
+                };
+                let value = value.to_owned();
+                if value.is_empty() {
+                    raw_arg.value = None;
+                    pending = Some(Opt::Short {
+                        spec: self,
+                        metadata,
+                        index,
+                        value: "".to_owned(),
+                    });
+                } else {
+                    raw_arg.value = None;
+                    return Opt::Short {
+                        spec: self,
+                        metadata,
+                        index,
+                        value,
+                    };
                 }
             }
 
@@ -445,7 +441,7 @@ mod tests {
 
     #[test]
     fn required_opt() {
-        let mut args = args(&["test", "--foo", "bar", "-f=baz"]);
+        let mut args = args(&["test", "--foo", "bar", "-fbaz"]);
         let mut opt = opt("foo");
         opt.short = Some('f');
         assert!(matches!(opt.take(&mut args), Opt::Long { index: 1, .. }));
