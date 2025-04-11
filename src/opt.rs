@@ -185,13 +185,13 @@ impl OptSpec {
                         Some(_) => {}
                     }
                     continue;
-                } else if value[1..].chars().next() != self.short {
-                    continue;
                 }
 
                 // Short name option.
-                let opt_name_len = self.short.map(|c| c.len_utf8()).unwrap_or(0);
-                let value = value[1 + opt_name_len..].to_owned();
+                let Some(value) = self.short.and_then(|c| value[1..].strip_prefix(c)) else {
+                    continue;
+                };
+                let value = value.to_owned();
                 if value.is_empty() {
                     raw_arg.value = None;
                     pending = Some(Opt::Short {
