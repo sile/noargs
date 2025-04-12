@@ -331,8 +331,13 @@ impl Opt {
         }
     }
 
-    /// Returns `true` if this option has a value.
+    /// Returns `true` if this option is present.
     pub fn is_present(&self) -> bool {
+        !matches!(self, Opt::None { .. })
+    }
+
+    /// Returns `true` if this option is present and has a value.
+    pub fn is_value_present(&self) -> bool {
         !matches!(self, Opt::None { .. } | Opt::MissingValue { .. })
     }
 
@@ -365,14 +370,14 @@ impl Opt {
     ///
     /// # Errors
     ///
-    /// - Returns [`Error::MissingOpt`] if `self.is_present()` is `false` (option is missing)
+    /// - Returns [`Error::MissingOpt`] if `self.is_value_present()` is `false` (option is missing)
     /// - Returns [`Error::InvalidOpt`] if `f(self)` returns `Err(_)` (validation or conversion failed)
     pub fn then<F, T, E>(self, f: F) -> Result<T, Error>
     where
         F: FnOnce(Self) -> Result<T, E>,
         E: std::fmt::Display,
     {
-        if !self.is_present() {
+        if !self.is_value_present() {
             return Err(Error::MissingOpt {
                 opt: Box::new(self),
             });
@@ -468,6 +473,18 @@ mod tests {
         opt.example = Some("3");
         assert!(matches!(opt.take(&mut args), Opt::Example { .. }));
         assert!(matches!(opt.take(&mut args), Opt::Example { .. }));
+    }
+
+    #[test]
+    fn missing_short_opt_value() {
+        let mut args = args(&["test", "-f"]);
+        let mut opt = opt("foo");
+        opt.short = Some('f');
+        assert!(
+            opt.take(&mut args)
+                .present_and_then(|o| o.value().parse::<String>())
+                .is_err()
+        );
     }
 
     #[test]
