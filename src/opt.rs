@@ -288,36 +288,6 @@ pub enum Opt {
 }
 
 impl Opt {
-    /// Parse the value of this option.
-    #[deprecated(since = "0.3.0", note = "please use `then()` instead")]
-    pub fn parse<T>(&self) -> Result<T, Error>
-    where
-        T: std::str::FromStr,
-        T::Err: std::fmt::Display,
-    {
-        self.clone().then(|opt| opt.value().parse())
-    }
-
-    /// Parse the value of this option if it is present.
-    #[deprecated(since = "0.3.0", note = "please use `present_and_then()` instead")]
-    pub fn parse_if_present<T>(&self) -> Result<Option<T>, Error>
-    where
-        T: std::str::FromStr,
-        T::Err: std::fmt::Display,
-    {
-        self.clone().present_and_then(|opt| opt.value().parse())
-    }
-
-    /// Similar to [`Opt::parse()`], but more flexible as this method allows you to specify an arbitrary parsing function.
-    #[deprecated(since = "0.3.0", note = "please use `then()` instead")]
-    pub fn parse_with<F, T, E>(&self, f: F) -> Result<T, Error>
-    where
-        F: FnOnce(&Self) -> Result<T, E>,
-        E: std::fmt::Display,
-    {
-        self.clone().then(|opt| f(&opt))
-    }
-
     /// Returns the specification of this option.
     pub fn spec(&self) -> OptSpec {
         match self {
@@ -395,18 +365,6 @@ impl Opt {
         E: std::fmt::Display,
     {
         self.present().map(|opt| opt.then(f)).transpose()
-    }
-
-    /// Returns the raw value of this option.
-    #[deprecated(since = "0.3.0", note = "please use `present()` and `value()` instead")]
-    pub fn raw_value(&self) -> Option<&str> {
-        self.is_present().then_some(self.value())
-    }
-
-    /// Returns the raw value of this option, or an empty string if not present.
-    #[deprecated(since = "0.3.0", note = "please use `value()` instead")]
-    pub fn raw_value_or_empty(&self) -> &str {
-        self.value()
     }
 
     /// Returns the raw value of this option, or an empty string if not present.
