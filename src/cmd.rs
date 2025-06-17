@@ -92,12 +92,6 @@ impl Cmd {
         }
     }
 
-    /// Returns `Some(_)` if this subcommand is present.
-    #[deprecated(since = "0.3.0", note = "please use `present()` instead")]
-    pub fn ok(self) -> Option<Self> {
-        self.is_present().then_some(self)
-    }
-
     /// Returns `true` if this subcommand is present.
     pub fn is_present(self) -> bool {
         matches!(self, Self::Some { .. })
