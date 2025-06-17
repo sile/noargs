@@ -203,15 +203,15 @@ impl OptSpec {
                                 index,
                                 value: "".to_owned(),
                             });
-                        } else if value_after_short.starts_with('=') {
+                        } else if let Some(opt_value) = value_after_short.strip_prefix('=') {
                             // Format: -f=value (value after equals sign)
-                            let opt_value = value_after_short[1..].to_owned();
+                            let value = opt_value.to_owned();
                             raw_arg.value = None;
                             return Opt::Short {
                                 spec: self,
                                 metadata,
                                 index,
-                                value: opt_value,
+                                value,
                             };
                         }
                         // Note: -fvalue format (without =) is intentionally not supported
