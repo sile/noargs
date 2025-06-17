@@ -71,6 +71,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Makes an [`RawArgs`] instance initialized with command-line arguments.
 ///
 /// This is a shorthand for `RawArgs::new(std::env::args())`.
+#[must_use]
 pub fn raw_args() -> RawArgs {
     RawArgs::new(std::env::args())
 }
@@ -83,21 +84,25 @@ pub fn raw_args() -> RawArgs {
 /// - Optional: `[NAME]`
 /// - Zero or more: `[NAME]...`
 /// - One or more: `<NAME>...`
+#[must_use]
 pub const fn arg(name: &'static str) -> ArgSpec {
     ArgSpec::new(name)
 }
 
 /// Makes an [`OptSpec`] instance with a specified name.
+#[must_use]
 pub const fn opt(name: &'static str) -> OptSpec {
     OptSpec::new(name)
 }
 
 /// Makes a [`FlagSpec`] instance with a specified name.
+#[must_use]
 pub const fn flag(name: &'static str) -> FlagSpec {
     FlagSpec::new(name)
 }
 
 /// Makes a [`CmdSpec`] instance with a specified name.
+#[must_use]
 pub const fn cmd(name: &'static str) -> CmdSpec {
     CmdSpec::new(name)
 }

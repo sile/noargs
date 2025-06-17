@@ -38,6 +38,7 @@ impl FlagSpec {
     };
 
     /// Makes an [`FlagSpec`] instance with a specified name (equivalent to `noargs::flag(name)`).
+    #[must_use]
     pub const fn new(name: &'static str) -> Self {
         Self {
             name,
@@ -46,36 +47,42 @@ impl FlagSpec {
     }
 
     /// Updates the value of [`FlagSpec::short`].
+    #[must_use]
     pub const fn short(mut self, name: char) -> Self {
         self.short = Some(name);
         self
     }
 
     /// Updates the value of [`FlagSpec::doc`].
+    #[must_use]
     pub const fn doc(mut self, doc: &'static str) -> Self {
         self.doc = doc;
         self
     }
 
     /// Updates the value of [`FlagSpec::env`].
+    #[must_use]
     pub const fn env(mut self, variable_name: &'static str) -> Self {
         self.env = Some(variable_name);
         self
     }
 
     /// Updates the value of [`FlagSpec::min_index`].
+    #[must_use]
     pub const fn min_index(mut self, index: Option<usize>) -> Self {
         self.min_index = index;
         self
     }
 
     /// Updates the value of [`FlagSpec::max_index`].
+    #[must_use]
     pub const fn max_index(mut self, index: Option<usize>) -> Self {
         self.max_index = index;
         self
     }
 
     /// Takes the first [`Flag`] instance that satisfies this specification from the raw arguments.
+    #[must_use]
     pub fn take(self, args: &mut RawArgs) -> Flag {
         args.with_record_flag(|args| {
             for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
@@ -159,6 +166,7 @@ pub enum Flag {
 
 impl Flag {
     /// Returns the specification of this flag.
+    #[must_use]
     pub fn spec(self) -> FlagSpec {
         match self {
             Flag::Short { spec, .. }
@@ -169,16 +177,19 @@ impl Flag {
     }
 
     /// Returns `true` if this flag is set.
+    #[must_use]
     pub fn is_present(self) -> bool {
         !matches!(self, Flag::None { .. })
     }
 
     /// Returns `Some(self)` if this flag is present.
+    #[must_use]
     pub fn present(self) -> Option<Self> {
         self.is_present().then_some(self)
     }
 
     /// Returns the index at which the raw value associated with this flag was located in [`RawArgs`].
+    #[must_use]
     pub fn index(self) -> Option<usize> {
         match self {
             Flag::Short { index, .. } | Flag::Long { index, .. } => Some(index),
