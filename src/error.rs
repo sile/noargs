@@ -287,7 +287,7 @@ Try '--help' for more information."#
 
     #[test]
     fn parse_opt_error() {
-        let mut args = RawArgs::new(["noargs", "-f=bar"].iter().map(|a| a.to_string()));
+        let mut args = RawArgs::new(["noargs", "-f", "bar"].iter().map(|a| a.to_string()));
         args.metadata_mut().help_flag_name = None;
         let e = opt("foo")
             .short('f')

@@ -203,18 +203,8 @@ impl OptSpec {
                                 index,
                                 value: "".to_owned(),
                             });
-                        } else if let Some(opt_value) = value_after_short.strip_prefix('=') {
-                            // Format: -f=value (value after equals sign)
-                            let value = opt_value.to_owned();
-                            raw_arg.value = None;
-                            return Opt::Short {
-                                spec: self,
-                                metadata,
-                                index,
-                                value,
-                            };
                         }
-                        // Note: -fvalue format (without =) is intentionally not supported
+                        // Note: -fvalue format is intentionally not supported
                     }
                 }
             }
@@ -479,19 +469,18 @@ mod tests {
     }
 
     #[test]
-    fn short_option_with_equals() {
-        // Test that -f=value format works
+    fn short_option_equals_format_donot_works() {
         let mut args = test_args(&["test", "-f=value1", "-o=output.txt"]);
 
         let file_opt = opt("file").short('f');
         let result1 = file_opt.take(&mut args);
-        assert!(matches!(result1, Opt::Short { .. }));
-        assert_eq!(result1.value(), "value1");
+        assert!(matches!(result1, Opt::None { .. }));
+        assert!(!result1.is_present());
 
         let output_opt = opt("output").short('o');
         let result2 = output_opt.take(&mut args);
-        assert!(matches!(result2, Opt::Short { .. }));
-        assert_eq!(result2.value(), "output.txt");
+        assert!(matches!(result2, Opt::None { .. }));
+        assert!(!result2.is_present());
     }
 
     #[test]
@@ -520,10 +509,9 @@ mod tests {
             "test",
             "--long=long_value", // --key=value
             "--other",
-            "other_value",    // --key value
-            "-s=short_value", // -k=value
+            "other_value", // --key value
             "-f",
-            "file_value", // -k value
+            "file_value", // -k value (only supported short format)
         ]);
 
         let long_opt = opt("long");
@@ -536,32 +524,43 @@ mod tests {
         assert!(matches!(result2, Opt::Long { .. }));
         assert_eq!(result2.value(), "other_value");
 
-        let short_opt = opt("short").short('s');
-        let result3 = short_opt.take(&mut args);
-        assert!(matches!(result3, Opt::Short { .. }));
-        assert_eq!(result3.value(), "short_value");
-
         let file_opt = opt("file").short('f');
-        let result4 = file_opt.take(&mut args);
-        assert!(matches!(result4, Opt::Short { .. }));
-        assert_eq!(result4.value(), "file_value");
+        let result3 = file_opt.take(&mut args);
+        assert!(matches!(result3, Opt::Short { .. }));
+        assert_eq!(result3.value(), "file_value");
     }
 
     #[test]
     fn short_option_edge_cases() {
-        // Test empty value with equals
+        // Test that -f= format should not match
         let mut args = test_args(&["test", "-f="]);
         let file_opt = opt("file").short('f');
         let result = file_opt.take(&mut args);
-        assert!(matches!(result, Opt::Short { .. }));
-        assert_eq!(result.value(), "");
+        assert!(matches!(result, Opt::None { .. }));
+        assert!(!result.is_present());
 
-        // Test value that looks like an option
+        // Test that -f=--not-an-option should not match
         let mut args = test_args(&["test", "-f=--not-an-option"]);
         let file_opt = opt("file").short('f');
         let result = file_opt.take(&mut args);
-        assert!(matches!(result, Opt::Short { .. }));
-        assert_eq!(result.value(), "--not-an-option");
+        assert!(matches!(result, Opt::None { .. }));
+        assert!(!result.is_present());
+    }
+
+    #[test]
+    fn long_option_formats_still_work() {
+        // Verify that long options still support both formats
+        let mut args = test_args(&["test", "--file=value1", "--output", "value2"]);
+
+        let file_opt = opt("file");
+        let result1 = file_opt.take(&mut args);
+        assert!(matches!(result1, Opt::Long { .. }));
+        assert_eq!(result1.value(), "value1");
+
+        let output_opt = opt("output");
+        let result2 = output_opt.take(&mut args);
+        assert!(matches!(result2, Opt::Long { .. }));
+        assert_eq!(result2.value(), "value2");
     }
 
     fn test_args(raw_args: &[&str]) -> RawArgs {
