@@ -210,7 +210,7 @@ impl Taken {
     fn min_index(&self) -> Option<usize> {
         match self {
             Taken::Arg(x) => x.spec().min_index,
-            Taken::Opt(x) => x.spec().min_index,
+            Taken::Opt(_) => todo!(),
             Taken::Flag(_) => todo!(),
             Taken::Cmd(_) => todo!(),
         }
@@ -219,7 +219,7 @@ impl Taken {
     fn max_index(&self) -> Option<usize> {
         match self {
             Taken::Arg(x) => x.spec().max_index,
-            Taken::Opt(x) => x.spec().max_index,
+            Taken::Opt(_) => todo!(),
             Taken::Flag(_) => todo!(),
             Taken::Cmd(_) => todo!(),
         }
