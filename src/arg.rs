@@ -19,12 +19,6 @@ pub struct ArgSpec {
     ///
     /// This is only used if `RawArgs::metadata().help_mode` is `true`.
     pub example: Option<&'static str>,
-
-    /// Minimum index that [`Arg::index()`] can have.
-    pub min_index: Option<usize>,
-
-    /// Maximum index that [`Arg::index()`] can have.
-    pub max_index: Option<usize>,
 }
 
 impl ArgSpec {
@@ -34,8 +28,6 @@ impl ArgSpec {
         doc: "",
         default: None,
         example: None,
-        min_index: None,
-        max_index: None,
     };
 
     /// Makes an [`ArgSpec`] instance with a specified name (equivalent to `noargs::arg(name)`).
@@ -64,18 +56,6 @@ impl ArgSpec {
         self
     }
 
-    /// Updates the value of [`ArgSpec::min_index`].
-    pub const fn min_index(mut self, index: Option<usize>) -> Self {
-        self.min_index = index;
-        self
-    }
-
-    /// Updates the value of [`ArgSpec::max_index`].
-    pub const fn max_index(mut self, index: Option<usize>) -> Self {
-        self.max_index = index;
-        self
-    }
-
     /// Takes the first [`Arg`] instance that satisfies this specification from the raw arguments.
     pub fn take(self, args: &mut RawArgs) -> Arg {
         let metadata = args.metadata();
@@ -96,7 +76,7 @@ impl ArgSpec {
                 };
             }
 
-            for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
+            for (index, raw_arg) in args.raw_args_mut().iter_mut().enumerate() {
                 if let Some(value) = raw_arg.value.take() {
                     return Arg::Positional {
                         spec: self,

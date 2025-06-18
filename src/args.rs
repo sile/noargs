@@ -67,18 +67,6 @@ impl RawArgs {
         &mut self.raw_args
     }
 
-    pub(crate) fn range_mut(
-        &mut self,
-        min_index: Option<usize>,
-        max_index: Option<usize>,
-    ) -> impl '_ + Iterator<Item = (usize, &mut RawArg)> {
-        self.raw_args_mut()
-            .iter_mut()
-            .enumerate()
-            .take(max_index.map(|i| i + 1).unwrap_or(usize::MAX))
-            .skip(min_index.unwrap_or(0))
-    }
-
     pub(crate) fn log(&self) -> &[Taken] {
         &self.log
     }
@@ -200,28 +188,6 @@ impl Taken {
             Cow::Owned(format!("{:?}", s))
         } else {
             Cow::Borrowed(s)
-        }
-    }
-
-    pub fn contains_index(&self, index: usize) -> bool {
-        (self.min_index().unwrap_or(0)..=self.max_index().unwrap_or(usize::MAX)).contains(&index)
-    }
-
-    fn min_index(&self) -> Option<usize> {
-        match self {
-            Taken::Arg(x) => x.spec().min_index,
-            Taken::Opt(x) => x.spec().min_index,
-            Taken::Flag(x) => x.spec().min_index,
-            Taken::Cmd(x) => x.spec().min_index,
-        }
-    }
-
-    fn max_index(&self) -> Option<usize> {
-        match self {
-            Taken::Arg(x) => x.spec().max_index,
-            Taken::Opt(x) => x.spec().max_index,
-            Taken::Flag(x) => x.spec().max_index,
-            Taken::Cmd(x) => x.spec().max_index,
         }
     }
 }

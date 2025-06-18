@@ -18,12 +18,6 @@ pub struct FlagSpec {
     ///
     /// If a non-empty value is set to this variable, this flag is considered to be set.
     pub env: Option<&'static str>,
-
-    /// Minimum index that [`Flag::index()`] can have.
-    pub min_index: Option<usize>,
-
-    /// Maximum index that [`Flag::index()`] can have.
-    pub max_index: Option<usize>,
 }
 
 impl FlagSpec {
@@ -33,8 +27,6 @@ impl FlagSpec {
         short: None,
         doc: "",
         env: None,
-        min_index: None,
-        max_index: None,
     };
 
     /// Makes an [`FlagSpec`] instance with a specified name (equivalent to `noargs::flag(name)`).
@@ -63,22 +55,10 @@ impl FlagSpec {
         self
     }
 
-    /// Updates the value of [`FlagSpec::min_index`].
-    pub const fn min_index(mut self, index: Option<usize>) -> Self {
-        self.min_index = index;
-        self
-    }
-
-    /// Updates the value of [`FlagSpec::max_index`].
-    pub const fn max_index(mut self, index: Option<usize>) -> Self {
-        self.max_index = index;
-        self
-    }
-
     /// Takes the first [`Flag`] instance that satisfies this specification from the raw arguments.
     pub fn take(self, args: &mut RawArgs) -> Flag {
         args.with_record_flag(|args| {
-            for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
+            for (index, raw_arg) in args.raw_args_mut().iter_mut().enumerate() {
                 let Some(value) = &mut raw_arg.value else {
                     continue;
                 };
@@ -193,7 +173,7 @@ mod tests {
 
     #[test]
     fn long_name_flag() {
-        let mut args = args(&["test", "--foo"]);
+        let mut args = test_args(&["test", "--foo"]);
         let flag = flag("foo");
         assert!(matches!(flag.take(&mut args), Flag::Long { index: 1, .. }));
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
@@ -201,7 +181,7 @@ mod tests {
 
     #[test]
     fn short_name_flag() {
-        let mut args = args(&["test", "-f", "-bf"]);
+        let mut args = test_args(&["test", "-f", "-bf"]);
 
         let flag = short_flag('f');
         assert!(matches!(flag.take(&mut args), Flag::Short { index: 1, .. }));
@@ -215,7 +195,7 @@ mod tests {
 
     #[test]
     fn env_flag() {
-        let mut args = args(&["test", "--bar"]);
+        let mut args = test_args(&["test", "--bar"]);
 
         let flag = FlagSpec {
             name: "foo",
@@ -231,22 +211,7 @@ mod tests {
         assert!(matches!(flag.take(&mut args), Flag::Env { .. }));
     }
 
-    #[test]
-    fn flag_range() {
-        let mut args = args(&["test", "--foo", "--foo", "--foo"]);
-
-        let mut flag = flag("foo");
-        flag.min_index = Some(2);
-        flag.max_index = Some(2);
-        assert!(matches!(flag.take(&mut args), Flag::Long { index: 2, .. }));
-        assert!(matches!(flag.take(&mut args), Flag::None { .. }));
-
-        flag.max_index = None;
-        assert!(matches!(flag.take(&mut args), Flag::Long { index: 3, .. }));
-        assert!(matches!(flag.take(&mut args), Flag::None { .. }));
-    }
-
-    fn args(raw_args: &[&str]) -> RawArgs {
+    fn test_args(raw_args: &[&str]) -> RawArgs {
         RawArgs::new(raw_args.iter().map(|a| a.to_string()))
     }
 

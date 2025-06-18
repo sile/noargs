@@ -23,23 +23,22 @@ impl<'a> HelpBuilder<'a> {
         };
 
         // Subcommand handling.
-        let Some((name, log_index, arg_index)) =
-            this.log.iter().enumerate().rev().find_map(|(i, entry)| {
-                if let Taken::Cmd(cmd) = entry {
-                    cmd.index().map(|arg_index| (cmd.spec().name, i, arg_index))
-                } else {
-                    None
+        let Some((name, log_index)) = this.log.iter().enumerate().rev().find_map(|(i, entry)| {
+            if let Taken::Cmd(cmd) = entry {
+                if cmd.present().is_some() {
+                    return Some((cmd.spec().name, i));
                 }
-            })
-        else {
+            }
+            None
+        }) else {
             return this;
         };
         this.cmd_name = Some(name);
 
         let mut log = Vec::new();
         for (i, entry) in this.log.into_iter().enumerate() {
-            let mut retain = entry.contains_index(arg_index + 1);
-            if retain && matches!(entry, Taken::Arg(_) | Taken::Cmd(_)) {
+            let mut retain = true;
+            if matches!(entry, Taken::Arg(_) | Taken::Cmd(_)) {
                 retain = i > log_index;
             }
             if retain {
@@ -609,7 +608,7 @@ Options:
             ..Default::default()
         }
         .take(&mut args);
-        let cmd = CmdSpec {
+        CmdSpec {
             name: "get",
             doc: "Get an entry",
             ..Default::default()
@@ -617,8 +616,7 @@ Options:
         .take(&mut args);
         FlagSpec {
             name: "foo",
-            doc: "should not included",
-            max_index: cmd.index(),
+            doc: "should included",
             ..Default::default()
         }
         .take(&mut args);
@@ -626,7 +624,6 @@ Options:
             name: "<KEY>",
             doc: "A key string",
             example: Some("hi"),
-            min_index: cmd.index(),
             ..Default::default()
         }
         .take(&mut args);
@@ -645,6 +642,7 @@ Arguments:
 
 Options:
   -h, --help Print help ('--help' for full help, '-h' for summary)
+      --foo  should included
 "#
         );
 
@@ -665,6 +663,9 @@ Arguments:
 Options:
   --help, -h
     Print help ('--help' for full help, '-h' for summary)
+
+  --foo
+    should included
 "#
         );
     }
