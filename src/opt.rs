@@ -383,8 +383,7 @@ mod tests {
     #[test]
     fn required_opt() {
         let mut args = test_args(&["test", "--foo", "bar", "-f", "baz"]);
-        let mut opt = opt("foo");
-        opt.short = Some('f');
+        let opt = crate::opt("foo").short('f');
         assert!(matches!(opt.take(&mut args), Opt::Long { index: 1, .. }));
         assert!(matches!(opt.take(&mut args), Opt::Short { index: 3, .. }));
         assert!(matches!(opt.take(&mut args), Opt::None { .. }));
@@ -393,8 +392,7 @@ mod tests {
     #[test]
     fn default_opt() {
         let mut args = test_args(&["test", "--foo=1", "--bar=2"]);
-        let mut opt = opt("bar");
-        opt.default = Some("3");
+        let opt = crate::opt("bar").default("3");
         assert!(matches!(opt.take(&mut args), Opt::Long { index: 2, .. }));
         assert!(matches!(opt.take(&mut args), Opt::Default { .. }));
         assert!(matches!(opt.take(&mut args), Opt::Default { .. }));
@@ -405,8 +403,7 @@ mod tests {
         let mut args = test_args(&["test", "--foo=1", "--bar=2"]);
         args.metadata_mut().help_mode = true;
 
-        let mut opt = opt("bar");
-        opt.example = Some("3");
+        let opt = crate::opt("bar").example("3");
         assert!(matches!(opt.take(&mut args), Opt::Example { .. }));
         assert!(matches!(opt.take(&mut args), Opt::Example { .. }));
     }
@@ -414,8 +411,7 @@ mod tests {
     #[test]
     fn missing_short_opt_value() {
         let mut args = test_args(&["test", "-f"]);
-        let mut opt = opt("foo");
-        opt.short = Some('f');
+        let opt = crate::opt("foo").short('f');
         assert!(
             opt.take(&mut args)
                 .present_and_then(|o| o.value().parse::<String>())
@@ -426,8 +422,7 @@ mod tests {
     #[test]
     fn parse_opt() {
         let mut args = test_args(&["test", "--foo=1", "-f", "2", "--foo"]);
-        let mut opt = opt("foo");
-        opt.short = Some('f');
+        let opt = crate::opt("foo").short('f');
         assert_eq!(
             opt.take(&mut args)
                 .then(|o| o.value().parse::<usize>())
@@ -452,12 +447,12 @@ mod tests {
     fn short_option_equals_format_donot_works() {
         let mut args = test_args(&["test", "-f=value1", "-o=output.txt"]);
 
-        let file_opt = opt("file").short('f');
+        let file_opt = crate::opt("file").short('f');
         let result1 = file_opt.take(&mut args);
         assert!(matches!(result1, Opt::None { .. }));
         assert!(!result1.is_present());
 
-        let output_opt = opt("output").short('o');
+        let output_opt = crate::opt("output").short('o');
         let result2 = output_opt.take(&mut args);
         assert!(matches!(result2, Opt::None { .. }));
         assert!(!result2.is_present());
@@ -467,7 +462,7 @@ mod tests {
     fn short_option_separate_value() {
         // Test that -f value format works
         let mut args = test_args(&["test", "-f", "value1"]);
-        let file_opt = opt("file").short('f');
+        let file_opt = crate::opt("file").short('f');
         let result = file_opt.take(&mut args);
         assert!(matches!(result, Opt::Short { .. }));
         assert_eq!(result.value(), "value1");
@@ -477,7 +472,7 @@ mod tests {
     fn concatenated_short_option_no_longer_works() {
         // Test that -fvalue format (without =) no longer works
         let mut args = test_args(&["test", "-fvalue"]);
-        let file_opt = opt("file").short('f');
+        let file_opt = crate::opt("file").short('f');
         let result = file_opt.take(&mut args);
         assert!(matches!(result, Opt::None { .. }));
         assert!(!result.is_present());
@@ -494,17 +489,17 @@ mod tests {
             "file_value", // -k value (only supported short format)
         ]);
 
-        let long_opt = opt("long");
+        let long_opt = crate::opt("long");
         let result1 = long_opt.take(&mut args);
         assert!(matches!(result1, Opt::Long { .. }));
         assert_eq!(result1.value(), "long_value");
 
-        let other_opt = opt("other");
+        let other_opt = crate::opt("other");
         let result2 = other_opt.take(&mut args);
         assert!(matches!(result2, Opt::Long { .. }));
         assert_eq!(result2.value(), "other_value");
 
-        let file_opt = opt("file").short('f');
+        let file_opt = crate::opt("file").short('f');
         let result3 = file_opt.take(&mut args);
         assert!(matches!(result3, Opt::Short { .. }));
         assert_eq!(result3.value(), "file_value");
@@ -514,14 +509,14 @@ mod tests {
     fn short_option_edge_cases() {
         // Test that -f= format should not match
         let mut args = test_args(&["test", "-f="]);
-        let file_opt = opt("file").short('f');
+        let file_opt = crate::opt("file").short('f');
         let result = file_opt.take(&mut args);
         assert!(matches!(result, Opt::None { .. }));
         assert!(!result.is_present());
 
         // Test that -f=--not-an-option should not match
         let mut args = test_args(&["test", "-f=--not-an-option"]);
-        let file_opt = opt("file").short('f');
+        let file_opt = crate::opt("file").short('f');
         let result = file_opt.take(&mut args);
         assert!(matches!(result, Opt::None { .. }));
         assert!(!result.is_present());
@@ -532,12 +527,12 @@ mod tests {
         // Verify that long options still support both formats
         let mut args = test_args(&["test", "--file=value1", "--output", "value2"]);
 
-        let file_opt = opt("file");
+        let file_opt = crate::opt("file");
         let result1 = file_opt.take(&mut args);
         assert!(matches!(result1, Opt::Long { .. }));
         assert_eq!(result1.value(), "value1");
 
-        let output_opt = opt("output");
+        let output_opt = crate::opt("output");
         let result2 = output_opt.take(&mut args);
         assert!(matches!(result2, Opt::Long { .. }));
         assert_eq!(result2.value(), "value2");
@@ -545,12 +540,5 @@ mod tests {
 
     fn test_args(raw_args: &[&str]) -> RawArgs {
         RawArgs::new(raw_args.iter().map(|a| a.to_string()))
-    }
-
-    fn opt(name: &'static str) -> OptSpec {
-        OptSpec {
-            name,
-            ..Default::default()
-        }
     }
 }

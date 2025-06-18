@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn long_name_flag() {
         let mut args = test_args(&["test", "--foo"]);
-        let flag = flag("foo");
+        let flag = crate::flag("foo");
         assert!(matches!(flag.take(&mut args), Flag::Long { index: 1, .. }));
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
     }
@@ -183,12 +183,12 @@ mod tests {
     fn short_name_flag() {
         let mut args = test_args(&["test", "-f", "-bf"]);
 
-        let flag = short_flag('f');
+        let flag = crate::flag("dummy").short('f');
         assert!(matches!(flag.take(&mut args), Flag::Short { index: 1, .. }));
         assert!(matches!(flag.take(&mut args), Flag::Short { index: 2, .. }));
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
 
-        let flag = short_flag('b');
+        let flag = crate::flag("dummy").short('b');
         assert!(matches!(flag.take(&mut args), Flag::Short { index: 2, .. }));
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
     }
@@ -197,11 +197,7 @@ mod tests {
     fn env_flag() {
         let mut args = test_args(&["test", "--bar"]);
 
-        let flag = FlagSpec {
-            name: "foo",
-            env: Some("TEST_ENV_FLAG_FOO"),
-            ..Default::default()
-        };
+        let flag = crate::flag("foo").env("TEST_ENV_FLAG_FOO");
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
 
         unsafe {
@@ -213,20 +209,5 @@ mod tests {
 
     fn test_args(raw_args: &[&str]) -> RawArgs {
         RawArgs::new(raw_args.iter().map(|a| a.to_string()))
-    }
-
-    fn flag(long_name: &'static str) -> FlagSpec {
-        FlagSpec {
-            name: long_name,
-            ..Default::default()
-        }
-    }
-
-    fn short_flag(short_name: char) -> FlagSpec {
-        FlagSpec {
-            name: "dummy",
-            short: Some(short_name),
-            ..Default::default()
-        }
     }
 }

@@ -235,8 +235,8 @@ mod tests {
 
     #[test]
     fn required_arg() {
-        let mut args = args(&["test", "foo", "bar"]);
-        let arg = arg("ARG");
+        let mut args = test_args(&["test", "foo", "bar"]);
+        let arg = crate::arg("ARG");
         assert!(matches!(
             arg.take(&mut args),
             Arg::Positional { index: 1, .. }
@@ -250,9 +250,8 @@ mod tests {
 
     #[test]
     fn optional_arg() {
-        let mut args = args(&["test", "foo"]);
-        let mut arg = arg("ARG");
-        arg.default = Some("bar");
+        let mut args = test_args(&["test", "foo"]);
+        let arg = crate::arg("ARG").default("bar");
         assert!(matches!(
             arg.take(&mut args),
             Arg::Positional { index: 1, .. }
@@ -263,19 +262,18 @@ mod tests {
 
     #[test]
     fn example_arg() {
-        let mut args = args(&["test", "foo"]);
+        let mut args = test_args(&["test", "foo"]);
         args.metadata_mut().help_mode = true;
 
-        let mut arg = arg("ARG");
-        arg.example = Some("bar");
+        let arg = crate::arg("ARG").example("bar");
         assert!(matches!(arg.take(&mut args), Arg::Example { .. }));
         assert!(matches!(arg.take(&mut args), Arg::Example { .. }));
     }
 
     #[test]
     fn parse_arg() {
-        let mut args = args(&["test", "1", "not a number"]);
-        let arg = arg("ARG");
+        let mut args = test_args(&["test", "1", "not a number"]);
+        let arg = crate::arg("ARG");
         assert_eq!(
             arg.take(&mut args)
                 .then(|a| a.value().parse::<usize>())
@@ -296,14 +294,7 @@ mod tests {
         );
     }
 
-    fn args(raw_args: &[&str]) -> RawArgs {
+    fn test_args(raw_args: &[&str]) -> RawArgs {
         RawArgs::new(raw_args.iter().map(|a| a.to_string()))
-    }
-
-    fn arg(name: &'static str) -> ArgSpec {
-        ArgSpec {
-            name,
-            ..Default::default()
-        }
     }
 }
