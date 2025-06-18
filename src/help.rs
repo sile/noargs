@@ -615,7 +615,7 @@ Options:
         .take(&mut args);
         FlagSpec {
             name: "foo",
-            doc: "should not included",
+            doc: "should included",
             ..Default::default()
         }
         .take(&mut args);
@@ -641,6 +641,7 @@ Arguments:
 
 Options:
   -h, --help Print help ('--help' for full help, '-h' for summary)
+      --foo  should included
 "#
         );
 
@@ -661,6 +662,9 @@ Arguments:
 Options:
   --help, -h
     Print help ('--help' for full help, '-h' for summary)
+
+  --foo
+    should included
 "#
         );
     }
