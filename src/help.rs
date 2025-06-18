@@ -23,23 +23,21 @@ impl<'a> HelpBuilder<'a> {
         };
 
         // Subcommand handling.
-        let Some((name, log_index, arg_index)) =
-            this.log.iter().enumerate().rev().find_map(|(i, entry)| {
-                if let Taken::Cmd(cmd) = entry {
-                    cmd.index().map(|arg_index| (cmd.spec().name, i, arg_index))
-                } else {
-                    None
-                }
-            })
-        else {
+        let Some((name, log_index)) = this.log.iter().enumerate().rev().find_map(|(i, entry)| {
+            if let Taken::Cmd(cmd) = entry {
+                Some((cmd.spec().name, i))
+            } else {
+                None
+            }
+        }) else {
             return this;
         };
         this.cmd_name = Some(name);
 
         let mut log = Vec::new();
         for (i, entry) in this.log.into_iter().enumerate() {
-            let mut retain = entry.contains_index(arg_index + 1);
-            if retain && matches!(entry, Taken::Arg(_) | Taken::Cmd(_)) {
+            let mut retain = true;
+            if matches!(entry, Taken::Arg(_) | Taken::Cmd(_)) {
                 retain = i > log_index;
             }
             if retain {

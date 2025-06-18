@@ -190,16 +190,4 @@ impl Taken {
             Cow::Borrowed(s)
         }
     }
-
-    pub fn contains_index(&self, index: usize) -> bool {
-        (self.min_index().unwrap_or(0)..=self.max_index().unwrap_or(usize::MAX)).contains(&index)
-    }
-
-    fn min_index(&self) -> Option<usize> {
-        todo!()
-    }
-
-    fn max_index(&self) -> Option<usize> {
-        todo!()
-    }
 }
