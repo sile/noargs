@@ -41,6 +41,7 @@ impl CmdSpec {
                     return Cmd::Some { spec: self, index };
                 }
 
+                // Ensure only the next unconsumed argument is processed as a subcommand.
                 break;
             }
 
