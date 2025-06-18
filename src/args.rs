@@ -67,18 +67,6 @@ impl RawArgs {
         &mut self.raw_args
     }
 
-    pub(crate) fn range_mut(
-        &mut self,
-        min_index: Option<usize>,
-        max_index: Option<usize>,
-    ) -> impl '_ + Iterator<Item = (usize, &mut RawArg)> {
-        self.raw_args_mut()
-            .iter_mut()
-            .enumerate()
-            .take(max_index.map(|i| i + 1).unwrap_or(usize::MAX))
-            .skip(min_index.unwrap_or(0))
-    }
-
     pub(crate) fn log(&self) -> &[Taken] {
         &self.log
     }

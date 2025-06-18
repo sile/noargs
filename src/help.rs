@@ -609,7 +609,7 @@ Options:
             ..Default::default()
         }
         .take(&mut args);
-        let cmd = CmdSpec {
+        CmdSpec {
             name: "get",
             doc: "Get an entry",
             ..Default::default()
@@ -625,7 +625,6 @@ Options:
             name: "<KEY>",
             doc: "A key string",
             example: Some("hi"),
-            min_index: cmd.index(),
             ..Default::default()
         }
         .take(&mut args);
