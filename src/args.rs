@@ -212,7 +212,7 @@ impl Taken {
             Taken::Arg(x) => x.spec().min_index,
             Taken::Opt(x) => x.spec().min_index,
             Taken::Flag(_) => todo!(),
-            Taken::Cmd(x) => x.spec().min_index,
+            Taken::Cmd(_) => todo!(),
         }
     }
 
@@ -221,7 +221,7 @@ impl Taken {
             Taken::Arg(x) => x.spec().max_index,
             Taken::Opt(x) => x.spec().max_index,
             Taken::Flag(_) => todo!(),
-            Taken::Cmd(x) => x.spec().max_index,
+            Taken::Cmd(_) => todo!(),
         }
     }
 }

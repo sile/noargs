@@ -8,22 +8,11 @@ pub struct CmdSpec {
 
     /// Documentation.
     pub doc: &'static str,
-
-    /// Minimum index that [`Cmd::index()`] can have.
-    pub min_index: Option<usize>,
-
-    /// Maximum index that [`Cmd::index()`] can have.
-    pub max_index: Option<usize>,
 }
 
 impl CmdSpec {
     /// The default specification.
-    pub const DEFAULT: Self = Self {
-        name: "",
-        doc: "",
-        min_index: None,
-        max_index: None,
-    };
+    pub const DEFAULT: Self = Self { name: "", doc: "" };
 
     /// Makes an [`CmdSpec`] instance with a specified name (equivalent to `noargs::cmd(name)`).
     pub const fn new(name: &'static str) -> Self {
@@ -39,22 +28,10 @@ impl CmdSpec {
         self
     }
 
-    /// Updates the value of [`CmdSpec::min_index`].
-    pub const fn min_index(mut self, index: Option<usize>) -> Self {
-        self.min_index = index;
-        self
-    }
-
-    /// Updates the value of [`CmdSpec::max_index`].
-    pub const fn max_index(mut self, index: Option<usize>) -> Self {
-        self.max_index = index;
-        self
-    }
-
     /// Takes the first [`Cmd`] instance that satisfies this specification from the raw arguments.
     pub fn take(self, args: &mut RawArgs) -> Cmd {
         args.with_record_cmd(|args| {
-            for (index, raw_arg) in args.range_mut(self.min_index, self.max_index) {
+            for (index, raw_arg) in args.raw_args_mut().iter_mut().enumerate() {
                 let Some(value) = &raw_arg.value else {
                     continue;
                 };
