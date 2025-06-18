@@ -123,12 +123,12 @@ mod tests {
         let mut args = args(&["test", "--foo", "run", "--foo"]);
         if let Some(_cmd) = cmd("bar").take(&mut args).present() {
             panic!();
-        } else if let Some(cmd) = cmd("run").take(&mut args).present() {
+        } else if let Some(_cmd) = cmd("run").take(&mut args).present() {
             let flag = FlagSpec {
                 name: "foo",
-                min_index: cmd.index(),
                 ..Default::default()
             };
+            assert!(matches!(flag.take(&mut args), Flag::Long { index: 1, .. }));
             assert!(matches!(flag.take(&mut args), Flag::Long { index: 3, .. }));
             assert!(matches!(flag.take(&mut args), Flag::None { .. }));
         } else {

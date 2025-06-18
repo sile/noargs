@@ -211,7 +211,7 @@ impl Taken {
         match self {
             Taken::Arg(x) => x.spec().min_index,
             Taken::Opt(x) => x.spec().min_index,
-            Taken::Flag(x) => x.spec().min_index,
+            Taken::Flag(_) => todo!(),
             Taken::Cmd(x) => x.spec().min_index,
         }
     }
@@ -220,7 +220,7 @@ impl Taken {
         match self {
             Taken::Arg(x) => x.spec().max_index,
             Taken::Opt(x) => x.spec().max_index,
-            Taken::Flag(x) => x.spec().max_index,
+            Taken::Flag(_) => todo!(),
             Taken::Cmd(x) => x.spec().max_index,
         }
     }

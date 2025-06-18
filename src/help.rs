@@ -618,7 +618,6 @@ Options:
         FlagSpec {
             name: "foo",
             doc: "should not included",
-            max_index: cmd.index(),
             ..Default::default()
         }
         .take(&mut args);
