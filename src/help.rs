@@ -362,6 +362,8 @@ impl<'a> HelpBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::{HELP_FLAG, VERSION_FLAG};
+
     use super::*;
 
     #[test]
@@ -462,7 +464,6 @@ Options:
         let mut args = test_args(&["test"]);
         args.metadata_mut().app_description = "";
         HELP_FLAG.take(&mut args);
-            .take(&mut args);
         crate::arg("<REQUIRED>")
             .doc("Foo\nDetail is foo")
             .example("3")
