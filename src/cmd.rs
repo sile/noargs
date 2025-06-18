@@ -40,6 +40,8 @@ impl CmdSpec {
                     raw_arg.value = None;
                     return Cmd::Some { spec: self, index };
                 }
+
+                break;
             }
 
             Cmd::None { spec: self }
@@ -96,18 +98,114 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cmd_and_flag() {
+    fn cmd_at_first_position() {
+        let mut args = test_args(&["test", "run", "--foo", "test", "--foo"]);
+        let cmd = crate::cmd("run").take(&mut args);
+
+        assert!(cmd.is_present());
+        assert_eq!(cmd.index(), Some(1));
+        assert_eq!(cmd.spec().name, "run");
+    }
+
+    #[test]
+    fn cmd_not_at_first_position_not_found() {
         let mut args = test_args(&["test", "--foo", "run", "--foo"]);
-        if crate::cmd("bar").take(&mut args).is_present() {
-            panic!();
-        } else if crate::cmd("run").take(&mut args).is_present() {
-            let flag = crate::flag("foo");
-            assert!(matches!(flag.take(&mut args), Flag::Long { index: 1, .. }));
-            assert!(matches!(flag.take(&mut args), Flag::Long { index: 3, .. }));
-            assert!(matches!(flag.take(&mut args), Flag::None { .. }));
-        } else {
-            panic!()
-        }
+
+        // First, try to find 'run' command - it won't be found due to '--foo' being in the way
+        let cmd = crate::cmd("run").take(&mut args);
+        assert!(!cmd.is_present());
+        assert_eq!(cmd.index(), None);
+
+        // But if we consume the first '--foo' flag first...
+        let mut args = test_args(&["test", "--foo", "run", "--foo"]);
+        let flag = crate::flag("foo");
+        let first_flag = flag.take(&mut args);
+        assert!(matches!(first_flag, Flag::Long { index: 1, .. }));
+
+        // Now the 'run' command can be found
+        let cmd = crate::cmd("run").take(&mut args);
+        assert!(cmd.is_present());
+        assert_eq!(cmd.index(), Some(2));
+    }
+
+    #[test]
+    fn cmd_not_found() {
+        let mut args = test_args(&["test", "--foo", "run", "--foo"]);
+        let cmd = crate::cmd("nonexistent").take(&mut args);
+
+        assert!(!cmd.is_present());
+        assert_eq!(cmd.index(), None);
+    }
+
+    #[test]
+    fn cmd_consumed_after_take() {
+        let mut args = test_args(&["test", "run", "--foo"]);
+        let cmd = crate::cmd("run").take(&mut args);
+
+        assert!(cmd.is_present());
+
+        // Taking the same command again should not find it (already consumed)
+        let cmd2 = crate::cmd("run").take(&mut args);
+        assert!(!cmd2.is_present());
+    }
+
+    #[test]
+    fn cmd_with_flags() {
+        let mut args = test_args(&["test", "run", "--foo", "--bar"]);
+        let cmd = crate::cmd("run").take(&mut args);
+
+        assert!(cmd.is_present());
+
+        // Flags should still be available after command is consumed
+        let flag1 = crate::flag("foo");
+        assert!(matches!(flag1.take(&mut args), Flag::Long { index: 2, .. }));
+
+        let flag2 = crate::flag("bar");
+        assert!(matches!(flag2.take(&mut args), Flag::Long { index: 3, .. }));
+    }
+
+    #[test]
+    fn multiple_commands() {
+        let mut args = test_args(&["test", "first", "second", "third"]);
+
+        let cmd1 = crate::cmd("first").take(&mut args);
+        assert!(cmd1.is_present());
+
+        let cmd2 = crate::cmd("second").take(&mut args);
+        assert!(cmd2.is_present());
+
+        let cmd3 = crate::cmd("third").take(&mut args);
+        assert!(cmd3.is_present());
+    }
+
+    #[test]
+    fn cmd_methods() {
+        let mut args = test_args(&["test", "run"]);
+        let cmd = crate::cmd("run").take(&mut args);
+
+        // Test present command methods
+        assert!(cmd.is_present());
+        assert!(cmd.present().is_some());
+        assert_eq!(cmd.index(), Some(1));
+        assert_eq!(cmd.spec().name, "run");
+
+        // Test absent command methods
+        let mut args2 = test_args(&["other"]);
+        let cmd2 = crate::cmd("run").take(&mut args2);
+
+        assert!(!cmd2.is_present());
+        assert!(cmd2.present().is_none());
+        assert_eq!(cmd2.index(), None);
+        assert_eq!(cmd2.spec().name, "run");
+    }
+
+    #[test]
+    fn cmd_with_empty_args() {
+        let mut args = test_args(&["test"]);
+        let cmd = crate::cmd("run").take(&mut args);
+
+        assert!(!cmd.is_present());
+        assert_eq!(cmd.index(), None);
     }
 
     fn test_args(raw_args: &[&str]) -> RawArgs {
