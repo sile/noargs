@@ -91,20 +91,17 @@ impl Cmd {
 
 #[cfg(test)]
 mod tests {
-    use crate::flag::{Flag, FlagSpec};
+    use crate::flag::Flag;
 
     use super::*;
 
     #[test]
     fn cmd_and_flag() {
-        let mut args = args(&["test", "--foo", "run", "--foo"]);
-        if let Some(_cmd) = cmd("bar").take(&mut args).present() {
+        let mut args = test_args(&["test", "--foo", "run", "--foo"]);
+        if crate::cmd("bar").take(&mut args).is_present() {
             panic!();
-        } else if let Some(_cmd) = cmd("run").take(&mut args).present() {
-            let flag = FlagSpec {
-                name: "foo",
-                ..Default::default()
-            };
+        } else if crate::cmd("run").take(&mut args).is_present() {
+            let flag = crate::flag("foo");
             assert!(matches!(flag.take(&mut args), Flag::Long { index: 1, .. }));
             assert!(matches!(flag.take(&mut args), Flag::Long { index: 3, .. }));
             assert!(matches!(flag.take(&mut args), Flag::None { .. }));
@@ -113,14 +110,7 @@ mod tests {
         }
     }
 
-    fn args(raw_args: &[&str]) -> RawArgs {
+    fn test_args(raw_args: &[&str]) -> RawArgs {
         RawArgs::new(raw_args.iter().map(|a| a.to_string()))
-    }
-
-    fn cmd(name: &'static str) -> CmdSpec {
-        CmdSpec {
-            name,
-            ..Default::default()
-        }
     }
 }

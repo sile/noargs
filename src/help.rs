@@ -362,13 +362,11 @@ impl<'a> HelpBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ArgSpec, CmdSpec, FlagSpec, HELP_FLAG, OptSpec, VERSION_FLAG};
-
     use super::*;
 
     #[test]
     fn flags_help() {
-        let mut args = args(&["noargs"]);
+        let mut args = test_args(&["test"]);
         args.metadata_mut().app_description = "Test command";
         HELP_FLAG.take(&mut args);
         VERSION_FLAG.take(&mut args);
@@ -390,19 +388,15 @@ Options:
 
     #[test]
     fn flags_and_opts_help() {
-        let mut args = args(&["noargs"]);
+        let mut args = test_args(&["test"]);
         args.metadata_mut().app_description = "";
         HELP_FLAG.take(&mut args);
-        OptSpec {
-            name: "foo",
-            short: Some('f'),
-            ty: "INTEGER",
-            doc: "An integer\nThis is foo",
-            env: Some("FOO_ENV"),
-            default: Some("10"),
-            ..Default::default()
-        }
-        .take(&mut args);
+        crate::opt("foo")
+            .short('f')
+            .doc("An integer\nThis is foo")
+            .env("FOO_ENV")
+            .default("10")
+            .take(&mut args);
 
         let help = HelpBuilder::new(&args, false).build();
         println!("{help}");
@@ -411,8 +405,8 @@ Options:
             r#"Usage: <APP_NAME> [OPTIONS]
 
 Options:
-  -h, --help          Print help ('--help' for full help, '-h' for summary)
-  -f, --foo <INTEGER> An integer [env: FOO_ENV] [default: 10]
+  -h, --help        Print help ('--help' for full help, '-h' for summary)
+  -f, --foo <VALUE> An integer [env: FOO_ENV] [default: 10]
 "#
         );
 
@@ -427,7 +421,7 @@ Options:
   --help, -h
     Print help ('--help' for full help, '-h' for summary)
 
-  --foo, -f <INTEGER>
+  --foo, -f <VALUE>
     An integer
     This is foo
     [env: FOO_ENV]
@@ -438,61 +432,47 @@ Options:
 
     #[test]
     fn required_opts_help() {
-        let mut args = args(&["noargs"]);
+        let mut args = test_args(&["test"]);
         args.metadata_mut().app_description = "";
         HELP_FLAG.take(&mut args);
-        OptSpec {
-            name: "foo",
-            short: Some('f'),
-            ty: "INTEGER",
-            doc: "An integer",
-            example: Some("10"),
-            ..Default::default()
-        }
-        .take(&mut args);
+        crate::opt("foo")
+            .short('f')
+            .doc("An integer")
+            .example("10")
+            .take(&mut args);
 
         let help = HelpBuilder::new(&args, false).build();
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: <APP_NAME> --foo <INTEGER> [OPTIONS]
+            r#"Usage: <APP_NAME> --foo <VALUE> [OPTIONS]
 
 Example:
   $ <APP_NAME> --foo 10
 
 Options:
-  -h, --help          Print help ('--help' for full help, '-h' for summary)
-  -f, --foo <INTEGER> An integer
+  -h, --help        Print help ('--help' for full help, '-h' for summary)
+  -f, --foo <VALUE> An integer
 "#
         );
     }
 
     #[test]
     fn positional_args_help() {
-        let mut args = args(&["noargs"]);
+        let mut args = test_args(&["test"]);
         args.metadata_mut().app_description = "";
         HELP_FLAG.take(&mut args);
-        ArgSpec {
-            name: "<REQUIRED>",
-            doc: "Foo\nDetail is foo",
-            example: Some("3"),
-            ..Default::default()
-        }
-        .take(&mut args);
-        ArgSpec {
-            name: "[OPTIONAL]",
-            doc: "Bar",
-            default: Some("9"),
-            ..Default::default()
-        }
-        .take(&mut args);
-        for _ in 0..3 {
-            ArgSpec {
-                name: "[MULTI]...",
-                doc: "Baz",
-                ..Default::default()
-            }
             .take(&mut args);
+        crate::arg("<REQUIRED>")
+            .doc("Foo\nDetail is foo")
+            .example("3")
+            .take(&mut args);
+        crate::arg("[OPTIONAL]")
+            .doc("Bar")
+            .default("9")
+            .take(&mut args);
+        for _ in 0..3 {
+            crate::arg("[MULTI]...").doc("Baz").take(&mut args);
         }
 
         let help = HelpBuilder::new(&args, false).build();
@@ -545,21 +525,11 @@ Options:
 
     #[test]
     fn before_subcommands_help() {
-        let mut args = args(&["noargs"]);
+        let mut args = test_args(&["test"]);
         args.metadata_mut().app_description = "";
         HELP_FLAG.take(&mut args);
-        CmdSpec {
-            name: "put",
-            doc: "Put an entry",
-            ..Default::default()
-        }
-        .take(&mut args);
-        CmdSpec {
-            name: "get",
-            doc: "Get an entry",
-            ..Default::default()
-        }
-        .take(&mut args);
+        crate::cmd("put").doc("Put an entry").take(&mut args);
+        crate::cmd("get").doc("Get an entry").take(&mut args);
 
         let help = HelpBuilder::new(&args, false).build();
         println!("{help}");
@@ -599,34 +569,16 @@ Options:
 
     #[test]
     fn after_subcommands_help() {
-        let mut args = args(&["noargs", "get"]);
+        let mut args = test_args(&["test", "get"]);
         args.metadata_mut().app_description = "";
         HELP_FLAG.take(&mut args);
-        CmdSpec {
-            name: "put",
-            doc: "Put an entry",
-            ..Default::default()
-        }
-        .take(&mut args);
-        CmdSpec {
-            name: "get",
-            doc: "Get an entry",
-            ..Default::default()
-        }
-        .take(&mut args);
-        FlagSpec {
-            name: "foo",
-            doc: "should included",
-            ..Default::default()
-        }
-        .take(&mut args);
-        ArgSpec {
-            name: "<KEY>",
-            doc: "A key string",
-            example: Some("hi"),
-            ..Default::default()
-        }
-        .take(&mut args);
+        crate::cmd("put").doc("Put an entry").take(&mut args);
+        crate::cmd("get").doc("Get an entry").take(&mut args);
+        crate::flag("foo").doc("should included").take(&mut args);
+        crate::arg("<KEY>")
+            .doc("A key string")
+            .example("hi")
+            .take(&mut args);
 
         let help = HelpBuilder::new(&args, false).build();
         println!("{help}");
@@ -670,7 +622,49 @@ Options:
         );
     }
 
-    fn args(raw_args: &[&str]) -> RawArgs {
+    #[test]
+    fn terminal_formatting() {
+        let mut args = test_args(&["test"]);
+        crate::flag("help").doc("Print help").take(&mut args);
+
+        // Test that terminal formatting doesn't break the content structure
+        let help_terminal = HelpBuilder::new(&args, true).build();
+        let help_no_terminal = HelpBuilder::new(&args, false).build();
+
+        // Both should have the same basic structure, just different formatting
+        assert!(help_terminal.contains("Usage:"));
+        assert!(help_no_terminal.contains("Usage:"));
+        assert!(help_terminal.contains("Options:"));
+        assert!(help_no_terminal.contains("Options:"));
+    }
+
+    #[test]
+    fn empty_description() {
+        let mut args = test_args(&["test"]);
+        args.metadata_mut().app_description = "";
+        crate::flag("help").doc("Print help").take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        // Should not start with empty lines when description is empty
+        assert!(help.starts_with("Usage:"));
+    }
+
+    #[test]
+    fn with_description() {
+        let mut args = test_args(&["test"]);
+        args.metadata_mut().app_description = "A test application\nWith multiple lines";
+        crate::flag("help").doc("Print help").take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        assert!(help.starts_with("A test application"));
+
+        // Test full mode shows all description lines
+        args.metadata_mut().full_help = true;
+        let help_full = HelpBuilder::new(&args, false).build();
+        assert!(help_full.contains("A test application\nWith multiple lines"));
+    }
+
+    fn test_args(raw_args: &[&str]) -> RawArgs {
         RawArgs::new(raw_args.iter().map(|a| a.to_string()))
     }
 }
