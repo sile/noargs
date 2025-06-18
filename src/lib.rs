@@ -109,7 +109,3 @@ pub const HELP_FLAG: FlagSpec = flag("help")
 
 /// Well-known flag (`--version`) for printing version information.
 pub const VERSION_FLAG: FlagSpec = flag("version").doc("Print version");
-
-/// Well-known flag (`--`) to indicate the end of options (named arguments).
-pub const OPTIONS_END_FLAG: FlagSpec =
-    flag("").doc("Indicates that all arguments following this flag are positional.");
