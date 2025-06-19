@@ -387,6 +387,8 @@ impl Opt {
 
 #[cfg(test)]
 mod tests {
+    use crate::HELP_FLAG;
+
     use super::*;
 
     #[test]
@@ -542,6 +544,19 @@ mod tests {
         let x_opt = crate::opt("x-opt").short('x');
         let result3 = x_opt.take(&mut args);
         assert!(matches!(result3, Opt::MissingValue { .. }));
+    }
+
+    #[test]
+    fn short_option_concatenated_value_does_not_interfere_with_separate_flags() {
+        let mut args = test_args(&["test", "-khello world", "-h"]);
+
+        // The first arg contains 'h' within the concatenated value "hello world"
+        // but it should not interfere with the separate -h flag in the second arg
+        let help = HELP_FLAG.take(&mut args);
+        assert_eq!(help.index(), Some(2));
+
+        let key = crate::opt("key").short('k').take(&mut args);
+        assert_eq!(key.index(), Some(1));
     }
 
     fn test_args(raw_args: &[&str]) -> RawArgs {
