@@ -57,6 +57,7 @@ impl FlagSpec {
 
     /// Takes the first [`Flag`] instance that satisfies this specification from the raw arguments.
     pub fn take(self, args: &mut RawArgs) -> Flag {
+        let is_valid_flag_chars = args.metadata().is_valid_flag_chars;
         args.with_record_flag(|args| {
             for (index, raw_arg) in args.raw_args_mut().iter_mut().enumerate() {
                 let Some(value) = &mut raw_arg.value else {
@@ -71,6 +72,7 @@ impl FlagSpec {
                         raw_arg.value = None;
                         return Flag::Long { spec: self, index };
                     }
+                } else if !(is_valid_flag_chars)(&value[1..]) {
                 } else if let Some(i) = value
                     .char_indices()
                     .skip(1)

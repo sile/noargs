@@ -137,6 +137,18 @@ pub struct Metadata {
 
     /// If `true`, a full help text will be displayed.
     pub full_help: bool,
+
+    /// Predicate function to determine if a string contains only valid flag characters.
+    ///
+    /// This function is used when parsing short flags to distinguish between:
+    /// - Multiple flags (e.g., `-abc` where each character is a flag)
+    /// - Options with concatenated values (e.g., `-khello` where 'k' is an option and "hello" is its value)
+    ///
+    /// The default implementation accepts only ASCII alphabetic characters, which prevents
+    /// ambiguity in parsing. For example, with `-khello world`, the presence of space and
+    /// non-alphabetic characters indicates this is an option with a concatenated value rather
+    /// than multiple flags.
+    pub is_valid_flag_chars: fn(&str) -> bool,
 }
 
 impl Default for Metadata {
@@ -147,6 +159,7 @@ impl Default for Metadata {
             help_flag_name: Some("help"),
             help_mode: false,
             full_help: false,
+            is_valid_flag_chars: |maybe_flags| maybe_flags.chars().all(|c| c.is_ascii_alphabetic()),
         }
     }
 }
