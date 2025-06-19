@@ -493,7 +493,7 @@ mod tests {
 
     #[test]
     fn long_option_formats_work() {
-        // Verify that long optionsx support both formats
+        // Verify that long options support both formats
         let mut args = test_args(&["test", "--file=value1", "--output", "value2"]);
 
         let file_opt = crate::opt("file");
