@@ -148,6 +148,29 @@ pub struct Metadata {
     /// ambiguity in parsing. For example, with `-khello world`, the presence of space and
     /// non-alphabetic characters indicates this is an option with a concatenated value rather
     /// than multiple flags.
+    ///
+    /// # Example: Only accept flags actually defined by the app
+    ///
+    /// ```rust
+    /// use noargs::{raw_args, flag};
+    ///
+    /// let mut args = raw_args();
+    ///
+    /// // Define the valid short flags for your app
+    /// const VALID_FLAGS: &[char] = &['h', 'v', 'q', 'd'];
+    ///
+    /// // Only allow characters that correspond to actual flags in your app
+    /// args.metadata_mut().is_valid_flag_chars = |chars| {
+    ///     chars.chars().all(|c| VALID_FLAGS.contains(&c))
+    /// };
+    ///
+    /// // Now only -h, -v, -q, -d and their combinations (like -hv, -vd) are valid
+    /// // Anything else like -khello be treated as an option with concatenated value
+    /// let help_flag = flag("help").short('h').take(&mut args);
+    /// let verbose_flag = flag("verbose").short('v').take(&mut args);
+    /// let quiet_flag = flag("quiet").short('q').take(&mut args);
+    /// let debug_flag = flag("debug").short('d').take(&mut args);
+    /// ```
     pub is_valid_flag_chars: fn(&str) -> bool,
 }
 
@@ -159,7 +182,7 @@ impl Default for Metadata {
             help_flag_name: Some("help"),
             help_mode: false,
             full_help: false,
-            is_valid_flag_chars: |maybe_flags| maybe_flags.chars().all(|c| c.is_ascii_alphabetic()),
+            is_valid_flag_chars: |chars| chars.chars().all(|c| c.is_ascii_alphabetic()),
         }
     }
 }
