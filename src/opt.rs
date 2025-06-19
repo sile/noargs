@@ -183,8 +183,17 @@ impl OptSpec {
                                 index,
                                 value: "".to_owned(),
                             });
+                        } else {
+                            // Format: -fVALUE (value concatenated directly)
+                            let opt_value = value_after_short.to_owned();
+                            raw_arg.value = None;
+                            return Opt::Short {
+                                spec: self,
+                                metadata,
+                                index,
+                                value: opt_value,
+                            };
                         }
-                        // Note: -fvalue format is intentionally not supported
                     }
                 }
             }
@@ -378,6 +387,8 @@ impl Opt {
 
 #[cfg(test)]
 mod tests {
+    use crate::HELP_FLAG;
+
     use super::*;
 
     #[test]
@@ -444,21 +455,6 @@ mod tests {
     }
 
     #[test]
-    fn short_option_equals_format_donot_works() {
-        let mut args = test_args(&["test", "-f=value1", "-o=output.txt"]);
-
-        let file_opt = crate::opt("file").short('f');
-        let result1 = file_opt.take(&mut args);
-        assert!(matches!(result1, Opt::None { .. }));
-        assert!(!result1.is_present());
-
-        let output_opt = crate::opt("output").short('o');
-        let result2 = output_opt.take(&mut args);
-        assert!(matches!(result2, Opt::None { .. }));
-        assert!(!result2.is_present());
-    }
-
-    #[test]
     fn short_option_separate_value() {
         // Test that -f value format works
         let mut args = test_args(&["test", "-f", "value1"]);
@@ -466,16 +462,6 @@ mod tests {
         let result = file_opt.take(&mut args);
         assert!(matches!(result, Opt::Short { .. }));
         assert_eq!(result.value(), "value1");
-    }
-
-    #[test]
-    fn concatenated_short_option_no_longer_works() {
-        // Test that -fvalue format (without =) no longer works
-        let mut args = test_args(&["test", "-fvalue"]);
-        let file_opt = crate::opt("file").short('f');
-        let result = file_opt.take(&mut args);
-        assert!(matches!(result, Opt::None { .. }));
-        assert!(!result.is_present());
     }
 
     #[test]
@@ -506,25 +492,8 @@ mod tests {
     }
 
     #[test]
-    fn short_option_edge_cases() {
-        // Test that -f= format should not match
-        let mut args = test_args(&["test", "-f="]);
-        let file_opt = crate::opt("file").short('f');
-        let result = file_opt.take(&mut args);
-        assert!(matches!(result, Opt::None { .. }));
-        assert!(!result.is_present());
-
-        // Test that -f=--not-an-option should not match
-        let mut args = test_args(&["test", "-f=--not-an-option"]);
-        let file_opt = crate::opt("file").short('f');
-        let result = file_opt.take(&mut args);
-        assert!(matches!(result, Opt::None { .. }));
-        assert!(!result.is_present());
-    }
-
-    #[test]
-    fn long_option_formats_still_work() {
-        // Verify that long options still support both formats
+    fn long_option_formats_work() {
+        // Verify that long options support both formats
         let mut args = test_args(&["test", "--file=value1", "--output", "value2"]);
 
         let file_opt = crate::opt("file");
@@ -536,6 +505,58 @@ mod tests {
         let result2 = output_opt.take(&mut args);
         assert!(matches!(result2, Opt::Long { .. }));
         assert_eq!(result2.value(), "value2");
+    }
+
+    #[test]
+    fn short_option_concatenated_value() {
+        // Test that -kVALUE format works (value concatenated directly after short option)
+        let mut args = test_args(&["test", "-fvalue1", "-ooutput.txt"]);
+
+        let file_opt = crate::opt("file").short('f');
+        let result1 = file_opt.take(&mut args);
+        assert!(matches!(result1, Opt::Short { .. }));
+        assert_eq!(result1.value(), "value1");
+
+        let output_opt = crate::opt("output").short('o');
+        let result2 = output_opt.take(&mut args);
+        assert!(matches!(result2, Opt::Short { .. }));
+        assert_eq!(result2.value(), "output.txt");
+    }
+
+    #[test]
+    fn short_option_concatenated_value_edge_cases() {
+        // Test edge cases for -kVALUE format
+        let mut args = test_args(&["test", "-f-dash-value", "-k123", "-x"]);
+
+        // Value starting with dash
+        let file_opt = crate::opt("file").short('f');
+        let result1 = file_opt.take(&mut args);
+        assert!(matches!(result1, Opt::Short { .. }));
+        assert_eq!(result1.value(), "-dash-value");
+
+        // Numeric value
+        let key_opt = crate::opt("key").short('k');
+        let result2 = key_opt.take(&mut args);
+        assert!(matches!(result2, Opt::Short { .. }));
+        assert_eq!(result2.value(), "123");
+
+        // Short option without concatenated value should look for separate value
+        let x_opt = crate::opt("x-opt").short('x');
+        let result3 = x_opt.take(&mut args);
+        assert!(matches!(result3, Opt::MissingValue { .. }));
+    }
+
+    #[test]
+    fn short_option_concatenated_value_does_not_interfere_with_separate_flags() {
+        let mut args = test_args(&["test", "-khello world", "-h"]);
+
+        // The first arg contains 'h' within the concatenated value "hello world"
+        // but it should not interfere with the separate -h flag in the second arg
+        let help = HELP_FLAG.take(&mut args);
+        assert_eq!(help.index(), Some(2));
+
+        let key = crate::opt("key").short('k').take(&mut args);
+        assert_eq!(key.index(), Some(1));
     }
 
     fn test_args(raw_args: &[&str]) -> RawArgs {
