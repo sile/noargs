@@ -387,6 +387,8 @@ impl Opt {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::LazyLock;
+
     use crate::HELP_FLAG;
 
     use super::*;
@@ -557,6 +559,21 @@ mod tests {
 
         let key = crate::opt("key").short('k').take(&mut args);
         assert_eq!(key.index(), Some(1));
+    }
+
+    #[test]
+    fn non_str_default() {
+        const DEFAULT_PORT: u16 = 8080;
+
+        let mut args = test_args(&["test"]);
+        let opt = crate::opt("port").default({
+            static DEFAULT_VALUE: LazyLock<String> = LazyLock::new(|| DEFAULT_PORT.to_string());
+            &*DEFAULT_VALUE
+        });
+        let result = opt.take(&mut args);
+
+        assert!(matches!(result, Opt::Default { .. }));
+        assert_eq!(result.value(), "8080");
     }
 
     fn test_args(raw_args: &[&str]) -> RawArgs {

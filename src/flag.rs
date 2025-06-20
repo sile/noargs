@@ -171,6 +171,8 @@ impl Flag {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::LazyLock;
+
     use super::*;
 
     #[test]
@@ -193,6 +195,19 @@ mod tests {
         let flag = crate::flag("dummy").short('b');
         assert!(matches!(flag.take(&mut args), Flag::Short { index: 2, .. }));
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
+    }
+
+    #[test]
+    fn doc_with_format_macro() {
+        crate::flag("test-flag").short('t').doc({
+            static DOC_STRING: LazyLock<String> = LazyLock::new(|| {
+                format!(
+                    "This is a dynamically generated doc string with version {}",
+                    env!("CARGO_PKG_VERSION")
+                )
+            });
+            &*DOC_STRING
+        });
     }
 
     #[test]
