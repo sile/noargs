@@ -31,7 +31,7 @@
 //!
 //!     // Handle application specific args
 //!     let foo: usize = noargs::opt("foo")
-//!         .default("1").take(&mut args).then(|o| o.value().parse())?;
+//!         .default("1").take(&mut args).then(|a| a.value().parse())?;
 //!     let bar: bool = noargs::flag("bar")
 //!         .take(&mut args).is_present();
 //!     let baz: Option<String> = noargs::arg("[BAZ]")
