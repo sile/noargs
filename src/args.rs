@@ -118,7 +118,7 @@ pub struct RawArg {
 }
 
 /// Metadata of [`RawArgs`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub struct Metadata {
     /// Application name (e.g., `env!("CARGO_PKG_NAME")`).
     pub app_name: &'static str,
@@ -184,6 +184,35 @@ impl Default for Metadata {
             full_help: false,
             is_valid_flag_chars: |chars| chars.chars().all(|c| c.is_ascii_alphabetic()),
         }
+    }
+}
+
+// [NOTE]
+// PartialEq, Eq, Hash are manually implemented to avoid
+// the `unpredictable_function_pointer_comparisons` warning.
+// (`is_valid_flag_chars` should not be compared)
+//
+// TODO: Remove `is_valid_flag_chars` from `Metadata`
+
+impl PartialEq for Metadata {
+    fn eq(&self, other: &Self) -> bool {
+        self.app_name == other.app_name
+            && self.app_description == other.app_description
+            && self.help_flag_name == other.help_flag_name
+            && self.help_mode == other.help_mode
+            && self.full_help == other.full_help
+    }
+}
+
+impl Eq for Metadata {}
+
+impl std::hash::Hash for Metadata {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.app_name.hash(state);
+        self.app_description.hash(state);
+        self.help_flag_name.hash(state);
+        self.help_mode.hash(state);
+        self.full_help.hash(state);
     }
 }
 
