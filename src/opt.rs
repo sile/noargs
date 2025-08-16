@@ -173,28 +173,29 @@ impl OptSpec {
                 };
 
                 if let Some(value_after_dash) = value.strip_prefix('-')
-                    && let Some(value_after_short) = value_after_dash.strip_prefix(short_char) {
-                        if value_after_short.is_empty() {
-                            // Format: -f (value in next argument)
-                            raw_arg.value = None;
-                            pending = Some(Opt::Short {
-                                spec: self,
-                                metadata,
-                                index,
-                                value: "".to_owned(),
-                            });
-                        } else {
-                            // Format: -fVALUE (value concatenated directly)
-                            let opt_value = value_after_short.to_owned();
-                            raw_arg.value = None;
-                            return Opt::Short {
-                                spec: self,
-                                metadata,
-                                index,
-                                value: opt_value,
-                            };
-                        }
+                    && let Some(value_after_short) = value_after_dash.strip_prefix(short_char)
+                {
+                    if value_after_short.is_empty() {
+                        // Format: -f (value in next argument)
+                        raw_arg.value = None;
+                        pending = Some(Opt::Short {
+                            spec: self,
+                            metadata,
+                            index,
+                            value: "".to_owned(),
+                        });
+                    } else {
+                        // Format: -fVALUE (value concatenated directly)
+                        let opt_value = value_after_short.to_owned();
+                        raw_arg.value = None;
+                        return Opt::Short {
+                            spec: self,
+                            metadata,
+                            index,
+                            value: opt_value,
+                        };
                     }
+                }
             }
 
             if pending.is_some() {

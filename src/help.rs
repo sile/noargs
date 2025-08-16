@@ -25,9 +25,10 @@ impl<'a> HelpBuilder<'a> {
         // Subcommand handling.
         let Some((name, log_index)) = this.log.iter().enumerate().rev().find_map(|(i, entry)| {
             if let Taken::Cmd(cmd) = entry
-                && cmd.present().is_some() {
-                    return Some((cmd.spec().name, i));
-                }
+                && cmd.present().is_some()
+            {
+                return Some((cmd.spec().name, i));
+            }
             None
         }) else {
             return this;
