@@ -172,8 +172,8 @@ impl OptSpec {
                     continue;
                 };
 
-                if let Some(value_after_dash) = value.strip_prefix('-') {
-                    if let Some(value_after_short) = value_after_dash.strip_prefix(short_char) {
+                if let Some(value_after_dash) = value.strip_prefix('-')
+                    && let Some(value_after_short) = value_after_dash.strip_prefix(short_char) {
                         if value_after_short.is_empty() {
                             // Format: -f (value in next argument)
                             raw_arg.value = None;
@@ -195,7 +195,6 @@ impl OptSpec {
                             };
                         }
                     }
-                }
             }
 
             if pending.is_some() {
