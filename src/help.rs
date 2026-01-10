@@ -193,7 +193,7 @@ impl<'a> HelpBuilder<'a> {
                 self.entry_name(entry),
                 width = width
             ));
-            for line in cmd.doc.lines() {
+            for line in self.doc_lines(cmd.doc) {
                 self.fmt
                     .write(&format!("{:offset$}{line}{newline}", "", offset = offset));
             }
@@ -560,6 +560,57 @@ Commands:
 
   get
     Get an entry
+
+Options:
+  --help, -h
+    Print help ('--help' for full help, '-h' for summary)
+"#
+        );
+    }
+
+    #[test]
+    fn commands_with_multiline_doc() {
+        let mut args = test_args(&["test"]);
+        args.metadata_mut().app_description = "";
+        HELP_FLAG.take(&mut args);
+        crate::cmd("put")
+            .doc("Put an entry\nDetailed description of put")
+            .take(&mut args);
+        crate::cmd("get")
+            .doc("Get an entry\nDetailed description of get")
+            .take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        println!("Normal mode:\n{help}");
+        assert_eq!(
+            help,
+            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
+
+Commands:
+  put Put an entry
+  get Get an entry
+
+Options:
+  -h, --help Print help ('--help' for full help, '-h' for summary)
+"#
+        );
+
+        // Test full mode - should show all lines
+        args.metadata_mut().full_help = true;
+        let help_full = HelpBuilder::new(&args, false).build();
+        println!("Full mode:\n{help_full}");
+        assert_eq!(
+            help_full,
+            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
+
+Commands:
+  put
+    Put an entry
+    Detailed description of put
+
+  get
+    Get an entry
+    Detailed description of get
 
 Options:
   --help, -h
