@@ -75,10 +75,31 @@ impl<'a> HelpBuilder<'a> {
     }
 
     fn build_description(&mut self) {
-        if self.args.metadata().app_description.is_empty() {
+        let description = if let Some(cmd_name) = self.cmd_name {
+            // Use subcommand description when in subcommand context
+            // Search in original args log, not filtered log
+            self.args
+                .log()
+                .iter()
+                .find_map(|entry| {
+                    if let Taken::Cmd(cmd) = entry {
+                        let cmd_spec = cmd.spec();
+                        if cmd_spec.name == cmd_name {
+                            return Some(cmd_spec.doc);
+                        }
+                    }
+                    None
+                })
+                .unwrap_or("")
+        } else {
+            // Use app description for main command
+            self.args.metadata().app_description
+        };
+
+        if description.is_empty() {
             return;
         }
-        for line in self.doc_lines(self.args.metadata().app_description) {
+        for line in self.doc_lines(description) {
             self.fmt.write(line);
             self.fmt.write("\n");
         }
@@ -193,7 +214,7 @@ impl<'a> HelpBuilder<'a> {
                 self.entry_name(entry),
                 width = width
             ));
-            for line in cmd.doc.lines() {
+            for line in self.doc_lines(cmd.doc) {
                 self.fmt
                     .write(&format!("{:offset$}{line}{newline}", "", offset = offset));
             }
@@ -527,7 +548,7 @@ Options:
     #[test]
     fn before_subcommands_help() {
         let mut args = test_args(&["test"]);
-        args.metadata_mut().app_description = "";
+        args.metadata_mut().app_description = "Test";
         HELP_FLAG.take(&mut args);
         crate::cmd("put").doc("Put an entry").take(&mut args);
         crate::cmd("get").doc("Get an entry").take(&mut args);
@@ -536,7 +557,9 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
+            r#"Test
+
+Usage: <APP_NAME> [OPTIONS] <COMMAND>
 
 Commands:
   put Put an entry
@@ -552,7 +575,9 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
+            r#"Test
+
+Usage: <APP_NAME> [OPTIONS] <COMMAND>
 
 Commands:
   put
@@ -569,9 +594,60 @@ Options:
     }
 
     #[test]
+    fn commands_with_multiline_doc() {
+        let mut args = test_args(&["test"]);
+        args.metadata_mut().app_description = "";
+        HELP_FLAG.take(&mut args);
+        crate::cmd("put")
+            .doc("Put an entry\nDetailed description of put")
+            .take(&mut args);
+        crate::cmd("get")
+            .doc("Get an entry\nDetailed description of get")
+            .take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        println!("Normal mode:\n{help}");
+        assert_eq!(
+            help,
+            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
+
+Commands:
+  put Put an entry
+  get Get an entry
+
+Options:
+  -h, --help Print help ('--help' for full help, '-h' for summary)
+"#
+        );
+
+        // Test full mode - should show all lines
+        args.metadata_mut().full_help = true;
+        let help_full = HelpBuilder::new(&args, false).build();
+        println!("Full mode:\n{help_full}");
+        assert_eq!(
+            help_full,
+            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
+
+Commands:
+  put
+    Put an entry
+    Detailed description of put
+
+  get
+    Get an entry
+    Detailed description of get
+
+Options:
+  --help, -h
+    Print help ('--help' for full help, '-h' for summary)
+"#
+        );
+    }
+
+    #[test]
     fn after_subcommands_help() {
         let mut args = test_args(&["test", "get"]);
-        args.metadata_mut().app_description = "";
+        args.metadata_mut().app_description = "Test";
         HELP_FLAG.take(&mut args);
         crate::cmd("put").doc("Put an entry").take(&mut args);
         crate::cmd("get").doc("Get an entry").take(&mut args);
@@ -585,7 +661,9 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: <APP_NAME> ... get [OPTIONS] <KEY>
+            r#"Get an entry
+
+Usage: <APP_NAME> ... get [OPTIONS] <KEY>
 
 Example:
   $ <APP_NAME> get hi
@@ -604,7 +682,9 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: <APP_NAME> ... get [OPTIONS] <KEY>
+            r#"Get an entry
+
+Usage: <APP_NAME> ... get [OPTIONS] <KEY>
 
 Example:
   $ <APP_NAME> get hi
