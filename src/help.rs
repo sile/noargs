@@ -75,10 +75,31 @@ impl<'a> HelpBuilder<'a> {
     }
 
     fn build_description(&mut self) {
-        if self.args.metadata().app_description.is_empty() {
+        let description = if let Some(cmd_name) = self.cmd_name {
+            // Use subcommand description when in subcommand context
+            // Search in original args log, not filtered log
+            self.args
+                .log()
+                .iter()
+                .find_map(|entry| {
+                    if let Taken::Cmd(cmd) = entry {
+                        let cmd_spec = cmd.spec();
+                        if cmd_spec.name == cmd_name {
+                            return Some(cmd_spec.doc);
+                        }
+                    }
+                    None
+                })
+                .unwrap_or("")
+        } else {
+            // Use app description for main command
+            self.args.metadata().app_description
+        };
+
+        if description.is_empty() {
             return;
         }
-        for line in self.doc_lines(self.args.metadata().app_description) {
+        for line in self.doc_lines(description) {
             self.fmt.write(line);
             self.fmt.write("\n");
         }
@@ -527,7 +548,7 @@ Options:
     #[test]
     fn before_subcommands_help() {
         let mut args = test_args(&["test"]);
-        args.metadata_mut().app_description = "";
+        args.metadata_mut().app_description = "Test";
         HELP_FLAG.take(&mut args);
         crate::cmd("put").doc("Put an entry").take(&mut args);
         crate::cmd("get").doc("Get an entry").take(&mut args);
@@ -536,7 +557,9 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
+            r#"Test
+
+Usage: <APP_NAME> [OPTIONS] <COMMAND>
 
 Commands:
   put Put an entry
@@ -552,7 +575,9 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: <APP_NAME> [OPTIONS] <COMMAND>
+            r#"Test
+
+Usage: <APP_NAME> [OPTIONS] <COMMAND>
 
 Commands:
   put
@@ -622,7 +647,7 @@ Options:
     #[test]
     fn after_subcommands_help() {
         let mut args = test_args(&["test", "get"]);
-        args.metadata_mut().app_description = "";
+        args.metadata_mut().app_description = "Test";
         HELP_FLAG.take(&mut args);
         crate::cmd("put").doc("Put an entry").take(&mut args);
         crate::cmd("get").doc("Get an entry").take(&mut args);
@@ -636,7 +661,9 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: <APP_NAME> ... get [OPTIONS] <KEY>
+            r#"Get an entry
+
+Usage: <APP_NAME> ... get [OPTIONS] <KEY>
 
 Example:
   $ <APP_NAME> get hi
@@ -655,7 +682,9 @@ Options:
         println!("{help}");
         assert_eq!(
             help,
-            r#"Usage: <APP_NAME> ... get [OPTIONS] <KEY>
+            r#"Get an entry
+
+Usage: <APP_NAME> ... get [OPTIONS] <KEY>
 
 Example:
   $ <APP_NAME> get hi
