@@ -38,7 +38,7 @@ pub enum Error {
     },
     Other {
         metadata: Option<Metadata>,
-        error: Box<dyn std::fmt::Display>,
+        error: String,
     },
 }
 
@@ -46,11 +46,11 @@ impl Error {
     /// Makes an application specific error.
     pub fn other<E>(args: &RawArgs, error: E) -> Self
     where
-        E: 'static + std::fmt::Display,
+        E: std::fmt::Display,
     {
         Self::Other {
             metadata: Some(args.metadata()),
-            error: Box::new(error),
+            error: error.to_string(),
         }
     }
 
@@ -182,14 +182,14 @@ impl Error {
                 metadata: Some(metadata),
                 error,
             } => {
-                fmt.write(&error.to_string());
+                fmt.write(error);
                 *metadata
             }
             Error::Other {
                 metadata: None,
                 error,
             } => {
-                fmt.write(&error.to_string());
+                fmt.write(error);
                 return fmt.finish();
             }
         };
@@ -207,11 +207,11 @@ impl Error {
     }
 }
 
-impl<T: 'static + std::fmt::Display> From<T> for Error {
+impl<T: std::fmt::Display> From<T> for Error {
     fn from(error: T) -> Self {
         Self::Other {
             metadata: None,
-            error: Box::new(error),
+            error: error.to_string(),
         }
     }
 }
