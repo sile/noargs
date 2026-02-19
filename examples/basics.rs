@@ -66,6 +66,8 @@ fn main() -> noargs::Result<()> {
         .then(|a| a.value().parse())?;
 
     if let Some(help) = args.finish()? {
+        // When help is requested, finish() returns the built help text.
+        // Print it here and exit without running application logic.
         print!("{help}");
         return Ok(());
     }
