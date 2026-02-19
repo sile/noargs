@@ -68,6 +68,9 @@ fn main() -> noargs::Result<()> {
 }
 ```
 
+For a fuller no-subcommand example (with common pitfalls), see
+[`examples/basics.rs`](examples/basics.rs).
+
 ### Subcommands
 
 The following example shows how to handle subcommands.
