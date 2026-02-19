@@ -49,7 +49,11 @@
 //! }
 //! ```
 //!
-//! The following example shows how to handle subcommands:
+//! For a fuller no-subcommand example (with common pitfalls), see `examples/basics.rs`.
+//! For repeated options / positional arrays, see `examples/arrays.rs`.
+//!
+//! The following example shows how to handle subcommands.
+//! For a fuller command-routing pattern, see `examples/subcommands.rs`.
 //! ```
 //! fn main() -> noargs::Result<()> {
 //!     let mut args = noargs::raw_args();
@@ -85,7 +89,6 @@
 //!         println!("Stopping service");
 //!     } else if let Some(help) = args.finish()? {
 //!         print!("{help}");
-//!         return Ok(());
 //!     }
 //!
 //!     Ok(())
