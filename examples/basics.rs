@@ -36,6 +36,8 @@ fn main() -> noargs::Result<()> {
         .then(|o| o.value().parse())?;
     // Important: a required option should set example()
     // so help mode can still produce meaningful usage/example text.
+    // Optional options are fine without example() when you use
+    // default() or present_and_then().
     let format: String = noargs::opt("format")
         .ty("FORMAT")
         .doc("Output format")
@@ -50,6 +52,8 @@ fn main() -> noargs::Result<()> {
 
     // Important: a required positional argument should set example()
     // so help mode can still produce meaningful usage/example text.
+    // Optional positional arguments are fine without example() when you use
+    // default() or present_and_then().
     let input: String = noargs::arg("<INPUT>")
         .doc("Input file path")
         .example("input.txt")
