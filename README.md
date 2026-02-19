@@ -70,6 +70,8 @@ fn main() -> noargs::Result<()> {
 
 For a fuller no-subcommand example (with common pitfalls), see
 [`examples/basics.rs`](examples/basics.rs).
+For repeated options / positional arrays, see
+[`examples/arrays.rs`](examples/arrays.rs).
 
 ### Subcommands
 

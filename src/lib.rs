@@ -50,6 +50,7 @@
 //! ```
 //!
 //! For a fuller no-subcommand example (with common pitfalls), see `examples/basics.rs`.
+//! For repeated options / positional arrays, see `examples/arrays.rs`.
 //!
 //! The following example shows how to handle subcommands.
 //! For a fuller command-routing pattern, see `examples/subcommands.rs`.
