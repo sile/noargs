@@ -70,7 +70,9 @@ fn main() -> noargs::Result<()> {
 
 ### Subcommands
 
-The following example shows how to handle subcommands:
+The following example shows how to handle subcommands.
+For a fuller command-routing pattern, see
+[`examples/subcommands.rs`](examples/subcommands.rs).
 
 ```rust
 fn main() -> noargs::Result<()> {
@@ -96,7 +98,6 @@ fn main() -> noargs::Result<()> {
             .default("8080")
             .take(&mut args)
             .then(|o| o.value().parse())?;
-
         println!("Starting service on port {}", port);
     } else if noargs::cmd("stop")
         .doc("Stop the service")
@@ -106,10 +107,8 @@ fn main() -> noargs::Result<()> {
         println!("Stopping service");
     } else if let Some(help) = args.finish()? {
         print!("{help}");
-        return Ok(());
     }
 
     Ok(())
 }
 ```
-

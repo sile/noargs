@@ -49,7 +49,8 @@
 //! }
 //! ```
 //!
-//! The following example shows how to handle subcommands:
+//! The following example shows how to handle subcommands.
+//! For a fuller command-routing pattern, see `examples/subcommands.rs`.
 //! ```
 //! fn main() -> noargs::Result<()> {
 //!     let mut args = noargs::raw_args();
@@ -85,7 +86,6 @@
 //!         println!("Stopping service");
 //!     } else if let Some(help) = args.finish()? {
 //!         print!("{help}");
-//!         return Ok(());
 //!     }
 //!
 //!     Ok(())
