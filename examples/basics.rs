@@ -17,7 +17,7 @@ fn main() -> noargs::Result<()> {
         .take(&mut args)
         .is_present();
     let dry_run = noargs::flag("dry-run")
-        .doc("Print parsed values without doing work")
+        .doc("Print parsed values and exit without running processing")
         .take(&mut args)
         .is_present();
     let retries: usize = noargs::opt("retries")
@@ -70,10 +70,13 @@ fn main() -> noargs::Result<()> {
         println!(
             "dry-run: verbose={verbose}, retries={retries}, endpoint={endpoint}, format={format}, timeout_secs={timeout_secs:?}, input={input}, output={output}"
         );
-    } else {
-        println!(
-            "verbose={verbose}, retries={retries}, endpoint={endpoint}, format={format}, timeout_secs={timeout_secs:?}, input={input}, output={output}"
-        );
+        return Ok(());
+    }
+
+    println!("processing: {input} -> {output}");
+    println!("using endpoint={endpoint}, format={format}, retries={retries}");
+    if verbose {
+        println!("verbose: timeout_secs={timeout_secs:?}");
     }
 
     Ok(())
