@@ -75,15 +75,13 @@ The crate is built around one pattern — there is no declarative schema:
 
 ## Usage gotchas
 
-- **Order matters, and unknown flags are silently swallowed.** Call `flag()`
-  / `opt()` `.take()` before `arg()` `.take()`. `arg()` eagerly consumes the
-  first remaining token — including any leftover `-v` (declared flag taken
-  too late) **or `--bogus` (typo / undeclared flag)**. The latter case is
-  particularly silent: `args.finish()` cannot tell a typo flag from a
-  legitimate positional value, so `prog --format json --bogus` will leave
-  `--bogus` as the `<INPUT>` value with no error. If strict typo detection
-  matters, inspect each parsed positional and reject values that start with
-  `-`.
+- **Order matters.** Call `flag()` / `opt()` `.take()` before `arg()`
+  `.take()`. `arg()` eagerly consumes the first remaining token —
+  including a leftover `-v` (declared flag taken too late) or `--bogus`
+  (typo / undeclared flag). `args.finish()` reports unconsumed tokens as
+  `Error::UnexpectedArg`, but a typo that fits an empty positional slot
+  is bound silently — e.g. `prog --format json --bogus` leaves `--bogus`
+  as the `<INPUT>` value with no error.
 - **`take_help` vs `take`.** `HELP_FLAG.take_help(&mut args)` flips
   `metadata.help_mode = true` when `-h`/`--help` is present, and also sets
   `full_help = true` for `--help` (long form). Use `take_help`, not plain
