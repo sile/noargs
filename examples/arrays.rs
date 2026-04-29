@@ -44,6 +44,9 @@ fn main() -> noargs::Result<()> {
 
     // Positional arrays are handled with one required argument + optional rest.
     // Naming convention: use `<NAME>...` for required-many and `[NAME]...` for optional-many.
+    // The `<>` / `[]` / `...` markers are cosmetic (used only in help output);
+    // required-ness is enforced below: `.then()` makes the first input required,
+    // the loop with `.present_and_then()` consumes zero or more rest inputs.
     let first_input: String = noargs::arg("<INPUT>")
         .doc("First input (required)")
         .example("a.txt")
