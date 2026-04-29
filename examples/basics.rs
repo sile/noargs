@@ -56,8 +56,8 @@ fn main() -> noargs::Result<()> {
         .example("input.txt")
         .take(&mut args)
         .then(|a| a.value().parse())?;
-    // Optional positional with default(): the value is always a String,
-    // collapsing absent / present-as-out.txt into one branch.
+    // Optional positional with default(): the value is always a String —
+    // absent uses "out.txt", present uses the given path.
     // For "absent vs present" distinction, use present_and_then() and bind
     // to Option<String> — see the README's [BAZ] example.
     let output: String = noargs::arg("[OUTPUT]")

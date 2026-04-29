@@ -70,8 +70,9 @@ The crate is built around one pattern — there is no declarative schema:
    positional so help-mode output has something to print. Optional fields with
    `.default()` or `.present_and_then()` do not need `.example()`.
    `.example()` is consulted *only* when `help_mode` is on; it never affects
-   parsing of real argv. Required-ness is decided by `.then()` (required) vs
-   `.present_and_then()` (optional) or `.default()`.
+   parsing of real argv. Required-ness is decided by `.then()` (errors if
+   absent) vs `.present_and_then()` (yields `Option<T>`); add `.default()`
+   to give `.then()` a value to bind when the field is absent.
 
 ## Usage gotchas
 
