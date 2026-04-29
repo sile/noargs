@@ -11,9 +11,6 @@ description: >
   parser, or migrating off clap/argh/structopt to a macro-free alternative.
 license: MIT
 compatibility: Requires Rust 1.88+ and cargo.
-metadata:
-  author: sile
-  version: "0.4.2"
 ---
 
 # noargs
@@ -31,9 +28,12 @@ actual API shape and usage patterns, not generic CLI-parsing background.
 - `noargs::HELP_FLAG` — pre-built `--help, -h` flag spec
 - `noargs::VERSION_FLAG` — pre-built `--version` flag spec
 - `noargs::Result<T>` and `noargs::Error`
-- Runtime types `Arg`, `Opt`, `Flag`, `Cmd` — each an enum whose variants
-  record how the value was supplied (positional / long / short / env / default
-  / example / none / missing-value)
+- Runtime types — each an enum whose variants record how the value was
+  supplied:
+  - `Arg`: `Positional` / `Default` / `Example` / `None`
+  - `Opt`: `Long` / `Short` / `Env` / `Default` / `Example` / `MissingValue` / `None`
+  - `Flag`: `Long` / `Short` / `Env` / `None`
+  - `Cmd`: `Some` / `None`
 
 ## The imperative parsing loop
 
@@ -60,7 +60,7 @@ The crate is built around one pattern — there is no declarative schema:
 2. **Named option with value** — `opt("long-name").short('f').ty("VALUE")`.
    Short-only options are not supported; every option must have a long name.
 3. **Boolean flag** — `flag("long-name").short('f')`. `.is_present()` is the
-   standard reader.
+   standard reader. Like `opt`, short-only flags are not supported.
 4. **Subcommand** — `cmd("name")`. Only matches if it's the *next unconsumed*
    token. Consume global flags/opts before `cmd().take()`, or the command
    token will be shadowed by leading flag tokens.
@@ -69,12 +69,21 @@ The crate is built around one pattern — there is no declarative schema:
 6. **Required-in-help** — add `.example("…")` to any required option /
    positional so help-mode output has something to print. Optional fields with
    `.default()` or `.present_and_then()` do not need `.example()`.
+   `.example()` is consulted *only* when `help_mode` is on; it never affects
+   parsing of real argv. Required-ness is decided by `.then()` (required) vs
+   `.present_and_then()` (optional) or `.default()`.
 
 ## Usage gotchas
 
-- **Order matters.** Call `flag()` / `opt()` `.take()` before `arg()` `.take()`.
-  `arg()` eagerly consumes the first remaining token — if a `-v` flag is still
-  in the buffer, `arg()` takes it as a positional value.
+- **Order matters, and unknown flags are silently swallowed.** Call `flag()`
+  / `opt()` `.take()` before `arg()` `.take()`. `arg()` eagerly consumes the
+  first remaining token — including any leftover `-v` (declared flag taken
+  too late) **or `--bogus` (typo / undeclared flag)**. The latter case is
+  particularly silent: `args.finish()` cannot tell a typo flag from a
+  legitimate positional value, so `prog --format json --bogus` will leave
+  `--bogus` as the `<INPUT>` value with no error. If strict typo detection
+  matters, inspect each parsed positional and reject values that start with
+  `-`.
 - **`take_help` vs `take`.** `HELP_FLAG.take_help(&mut args)` flips
   `metadata.help_mode = true` when `-h`/`--help` is present, and also sets
   `full_help = true` for `--help` (long form). Use `take_help`, not plain

@@ -10,7 +10,12 @@ fn main() -> noargs::Result<()> {
     noargs::HELP_FLAG.take_help(&mut args);
 
     // Important: call flag()/opt() before arg().
-    // Otherwise values like "-v" can be consumed as positional arguments.
+    // Otherwise values like "-v" — or any unknown "--bogus" — can be silently
+    // consumed as positional arguments.
+    //
+    // Required option / positional: set example("...") so help mode renders
+    // a meaningful Usage / Example line. Optional fields covered by default()
+    // or present_and_then() do not need example().
     let verbose = noargs::flag("verbose")
         .short('v')
         .doc("Enable verbose output")
@@ -34,10 +39,6 @@ fn main() -> noargs::Result<()> {
         .default("http://localhost:8080")
         .take(&mut args)
         .then(|o| o.value().parse())?;
-    // Important: a required option should set example()
-    // so help mode can still produce meaningful usage/example text.
-    // Optional options are fine without example() when you use
-    // default() or present_and_then().
     let format: String = noargs::opt("format")
         .ty("FORMAT")
         .doc("Output format")
@@ -50,15 +51,15 @@ fn main() -> noargs::Result<()> {
         .take(&mut args)
         .present_and_then(|o| o.value().parse())?;
 
-    // Important: a required positional argument should set example()
-    // so help mode can still produce meaningful usage/example text.
-    // Optional positional arguments are fine without example() when you use
-    // default() or present_and_then().
     let input: String = noargs::arg("<INPUT>")
         .doc("Input file path")
         .example("input.txt")
         .take(&mut args)
         .then(|a| a.value().parse())?;
+    // Optional positional with default(): the value is always a String,
+    // collapsing absent / present-as-out.txt into one branch.
+    // For "absent vs present" distinction, use present_and_then() and bind
+    // to Option<String> — see the README's [BAZ] example.
     let output: String = noargs::arg("[OUTPUT]")
         .doc("Output file path")
         .default("out.txt")
