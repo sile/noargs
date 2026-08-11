@@ -568,7 +568,7 @@ mod tests {
         let mut args = test_args(&["test"]);
         let opt = crate::opt("port").default({
             static DEFAULT_VALUE: LazyLock<String> = LazyLock::new(|| DEFAULT_PORT.to_string());
-            &*DEFAULT_VALUE
+            &DEFAULT_VALUE
         });
         let result = opt.take(&mut args);
 

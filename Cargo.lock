@@ -5,3 +5,12 @@ version = 4
 [[package]]
 name = "noargs"
 version = "0.4.3"
+dependencies = [
+ "noprop",
+]
+
+[[package]]
+name = "noprop"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "827bc70adb92a00321d7cd4fd1db0c7cae5c50ca2ab93d0c32178331cad45a05"

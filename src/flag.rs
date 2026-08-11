@@ -206,7 +206,7 @@ mod tests {
                     env!("CARGO_PKG_VERSION")
                 )
             });
-            &*DOC_STRING
+            &DOC_STRING
         });
     }
 

@@ -11,3 +11,6 @@ readme = "README.md"
 categories = [ "command-line-interface" ]
 
 [dependencies]
+
+[dev-dependencies]
+noprop = "0.1"
