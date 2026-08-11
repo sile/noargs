@@ -65,6 +65,18 @@ fn sample_noise_count(ctx: &mut TestCaseContext, max: usize) -> usize {
     })
 }
 
+/// Runs a property with a time-based seed, overridable via the
+/// `NOARGS_PBT_SEED` environment variable (decimal or hex) for
+/// deterministic reproduction of a reported failure.
+fn run<F>(cases: usize, f: F) -> noprop::TestResult
+where
+    F: Fn(&mut TestCaseContext) -> noprop::TestResult,
+{
+    let seed = noprop::seed_from_env_or_time("NOARGS_PBT_SEED")?;
+    noprop::Runner::new(seed).run(cases, f)?;
+    Ok(())
+}
+
 /// A declared flag whose long or short form appears in the args must
 /// be detected as present, even when other flags are also present.
 #[test]
@@ -72,7 +84,7 @@ fn declared_flag_is_detected() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_long = Cell::new(false);
     let observed_short = Cell::new(false);
-    noprop::Runner::new(0xDEAD_BEEF).run(256, |ctx| {
+    run(256, |ctx| {
         let idx = noprop::sample_usize_in(ctx, 0..FLAG_POOL.len());
         let (name, short) = FLAG_POOL[idx];
         let use_long = noprop::sample_bool(ctx);
@@ -119,7 +131,7 @@ fn declared_flag_is_detected() -> noprop::TestResult {
 fn undeclared_flag_is_not_detected() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_noise = Cell::new(false);
-    noprop::Runner::new(0xBEEF_FACE).run(256, |ctx| {
+    run(256, |ctx| {
         let target_idx = noprop::sample_usize_in(ctx, 0..FLAG_POOL.len());
         let (target_name, target_short) = FLAG_POOL[target_idx];
         let n_noise = sample_noise_count(ctx, 4);
@@ -158,7 +170,7 @@ fn declared_opt_value_round_trips() -> noprop::TestResult {
     let observed_equals = Cell::new(false);
     let observed_empty = Cell::new(false);
     let observed_dash = Cell::new(false);
-    noprop::Runner::new(0xC0FFEE).run(256, |ctx| {
+    run(256, |ctx| {
         let idx = noprop::sample_usize_in(ctx, 0..OPT_POOL.len());
         let (name, short) = OPT_POOL[idx];
         // Value classes: ordinary ASCII, empty, dash-prefixed.
@@ -219,7 +231,7 @@ fn declared_short_opt_value_round_trips() -> noprop::TestResult {
     let observed_concatenated = Cell::new(false);
     let observed_empty = Cell::new(false);
     let observed_dash = Cell::new(false);
-    noprop::Runner::new(0xCAFE_BABE).run(256, |ctx| {
+    run(256, |ctx| {
         let idx = noprop::sample_usize_in(ctx, 0..OPT_POOL.len());
         let (name, short) = OPT_POOL[idx];
         // Value classes: ordinary ASCII, empty, dash-prefixed.
@@ -277,7 +289,7 @@ fn declared_short_opt_value_round_trips() -> noprop::TestResult {
 fn declared_opt_default_fallback() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_noise = Cell::new(false);
-    noprop::Runner::new(0xFEED_BABE).run(128, |ctx| {
+    run(128, |ctx| {
         let idx = noprop::sample_usize_in(ctx, 0..OPT_POOL.len());
         let (name, short) = OPT_POOL[idx];
         let n_noise = sample_noise_count(ctx, 4);
@@ -312,7 +324,7 @@ fn declared_opt_default_fallback() -> noprop::TestResult {
 fn declared_positional_round_trips() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_with_flag = Cell::new(false);
-    noprop::Runner::new(0xABCD_1234).run(256, |ctx| {
+    run(256, |ctx| {
         let n = noprop::sample_usize_in(ctx, 0..10_000);
         let value = format!("pos{n}");
         // Optionally include a leading flag so the positional is not
@@ -352,7 +364,7 @@ fn declared_positional_round_trips() -> noprop::TestResult {
 fn help_mode_never_errors() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_extra = Cell::new(false);
-    noprop::Runner::new(0xFEED_BEEF).run(128, |ctx| {
+    run(128, |ctx| {
         let n_extra = sample_noise_count(ctx, 4);
         let extras: Vec<String> = (0..n_extra).map(|i| format!("extra{i}")).collect();
         let mut args = raw(&extras);
@@ -382,7 +394,7 @@ fn help_mode_never_errors() -> noprop::TestResult {
 fn multiple_declared_flags_are_all_detected() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_multi = Cell::new(false);
-    noprop::Runner::new(0xABCDEF01).run(128, |ctx| {
+    run(128, |ctx| {
         // Pick a shuffled prefix of the pool.
         let mut chosen: Vec<usize> = (0..FLAG_POOL.len()).collect();
         for i in 0..chosen.len() {
@@ -421,7 +433,7 @@ fn opt_without_value_at_end_is_missing_value() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_long = Cell::new(false);
     let observed_short = Cell::new(false);
-    noprop::Runner::new(0x0BAD_F00D).run(128, |ctx| {
+    run(128, |ctx| {
         let idx = noprop::sample_usize_in(ctx, 0..OPT_POOL.len());
         let (name, short) = OPT_POOL[idx];
         let use_long = noprop::sample_bool(ctx);
@@ -456,7 +468,7 @@ fn cmd_detected_only_at_first_unconsumed_position() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_present = Cell::new(false);
     let observed_absent = Cell::new(false);
-    noprop::Runner::new(0xC0FFEE12).run(128, |ctx| {
+    run(128, |ctx| {
         let idx = noprop::sample_usize_in(ctx, 0..CMD_POOL.len());
         let name = CMD_POOL[idx];
         let n_noise = sample_noise_count(ctx, 4);
@@ -515,7 +527,7 @@ fn cmd_detected_only_at_first_unconsumed_position() -> noprop::TestResult {
 fn finish_ok_when_all_args_consumed() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_mixed = Cell::new(false);
-    noprop::Runner::new(0x5EED_CAFE).run(128, |ctx| {
+    run(128, |ctx| {
         // Shuffled prefixes so the chosen flags / opts are unique.
         let mut flag_order: Vec<usize> = (0..FLAG_POOL.len()).collect();
         for i in 0..flag_order.len() {
@@ -594,7 +606,7 @@ fn finish_errors_on_unconsumed_arg() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_extra = Cell::new(false);
     let observed_clean = Cell::new(false);
-    noprop::Runner::new(0xBAD_C0DE).run(128, |ctx| {
+    run(128, |ctx| {
         // Shuffled flag order: the prefix is consumed by declaration,
         // the suffix (if any) remains as unexpected flag tokens.
         let mut flag_order: Vec<usize> = (0..FLAG_POOL.len()).collect();
@@ -671,7 +683,7 @@ fn repeated_opt_take_consumes_in_order() -> noprop::TestResult {
     let observed_multi = Cell::new(false);
     let observed_equals = Cell::new(false);
     let observed_separate = Cell::new(false);
-    noprop::Runner::new(0x0D_F00D).run(128, |ctx| {
+    run(128, |ctx| {
         let idx = noprop::sample_usize_in(ctx, 0..OPT_POOL.len());
         let (name, short) = OPT_POOL[idx];
         let m = noprop::sample_with_boundaries(
