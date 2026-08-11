@@ -150,19 +150,27 @@ fn undeclared_flag_is_not_detected() -> noprop::TestResult {
 }
 
 /// A declared opt's value must round-trip through both `--k v` and
-/// `--k=v` forms.
+/// `--k=v` forms, for ordinary, empty, and dash-prefixed values.
 #[test]
 fn declared_opt_value_round_trips() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_separate = Cell::new(false);
     let observed_equals = Cell::new(false);
+    let observed_empty = Cell::new(false);
+    let observed_dash = Cell::new(false);
     noprop::Runner::new(0xC0FFEE).run(256, |ctx| {
         let idx = noprop::sample_usize_in(ctx, 0..OPT_POOL.len());
         let (name, short) = OPT_POOL[idx];
-        // A simple ASCII value that will not be parsed as a flag/opt.
-        let n = noprop::sample_usize_in(ctx, 0..10_000);
-        let value = format!("v{n}");
-        let use_equals = noprop::sample_bool(ctx);
+        // Value classes: ordinary ASCII, empty, dash-prefixed.
+        let value_kind = noprop::sample_weighted_index(ctx, &[3, 1, 2]);
+        let value = match value_kind {
+            0 => format!("v{}", noprop::sample_usize_in(ctx, 0..10_000)),
+            1 => String::new(),
+            _ => format!("-dash-{}", noprop::sample_usize_in(ctx, 0..1_000)),
+        };
+        // An empty value is only meaningful in the `--k=` form; in the
+        // separate form the empty token would be swallowed as the value.
+        let use_equals = value_kind == 1 || noprop::sample_bool(ctx);
         let args_vec = if use_equals {
             vec![format!("--{name}={value}")]
         } else {
@@ -184,6 +192,11 @@ fn declared_opt_value_round_trips() -> noprop::TestResult {
         } else {
             observed_separate.set(true);
         }
+        match value_kind {
+            1 => observed_empty.set(true),
+            2 => observed_dash.set(true),
+            _ => {}
+        }
         Ok(())
     })?;
     assert!(
@@ -191,22 +204,35 @@ fn declared_opt_value_round_trips() -> noprop::TestResult {
         "no case exercised the `--k v` form"
     );
     assert!(observed_equals.get(), "no case exercised the `--k=v` form");
+    assert!(observed_empty.get(), "no case exercised an empty value");
+    assert!(observed_dash.get(), "no case exercised a dash value");
     Ok(())
 }
 
 /// A declared short opt's value must round-trip through both `-k v`
-/// and `-kv` (concatenated) forms.
+/// and `-kv` (concatenated) forms, for ordinary, empty, and
+/// dash-prefixed values.
 #[test]
 fn declared_short_opt_value_round_trips() -> noprop::TestResult {
     use std::cell::Cell;
     let observed_separate = Cell::new(false);
     let observed_concatenated = Cell::new(false);
+    let observed_empty = Cell::new(false);
+    let observed_dash = Cell::new(false);
     noprop::Runner::new(0xCAFE_BABE).run(256, |ctx| {
         let idx = noprop::sample_usize_in(ctx, 0..OPT_POOL.len());
         let (name, short) = OPT_POOL[idx];
-        let n = noprop::sample_usize_in(ctx, 0..10_000);
-        let value = format!("v{n}");
-        let use_concatenated = noprop::sample_bool(ctx);
+        // Value classes: ordinary ASCII, empty, dash-prefixed.
+        let value_kind = noprop::sample_weighted_index(ctx, &[3, 1, 2]);
+        let value = match value_kind {
+            0 => format!("v{}", noprop::sample_usize_in(ctx, 0..10_000)),
+            1 => String::new(),
+            _ => format!("-dash-{}", noprop::sample_usize_in(ctx, 0..1_000)),
+        };
+        // An empty value is only meaningful in the `-k` + "" separate
+        // form; the concatenated form would degrade to a bare `-k` and
+        // parse as MissingValue.
+        let use_concatenated = value_kind != 1 && noprop::sample_bool(ctx);
         let args_vec = if use_concatenated {
             vec![format!("-{short}{value}")]
         } else {
@@ -228,6 +254,11 @@ fn declared_short_opt_value_round_trips() -> noprop::TestResult {
         } else {
             observed_separate.set(true);
         }
+        match value_kind {
+            1 => observed_empty.set(true),
+            2 => observed_dash.set(true),
+            _ => {}
+        }
         Ok(())
     })?;
     assert!(observed_separate.get(), "no case exercised the `-k v` form");
@@ -235,6 +266,8 @@ fn declared_short_opt_value_round_trips() -> noprop::TestResult {
         observed_concatenated.get(),
         "no case exercised the `-kv` form"
     );
+    assert!(observed_empty.get(), "no case exercised an empty value");
+    assert!(observed_dash.get(), "no case exercised a dash value");
     Ok(())
 }
 
@@ -469,5 +502,234 @@ fn cmd_detected_only_at_first_unconsumed_position() -> noprop::TestResult {
         "no case exercised the present branch"
     );
     assert!(observed_absent.get(), "no case exercised the absent branch");
+    Ok(())
+}
+
+/// When every token has been consumed by a declared spec, `finish()`
+/// must succeed with `Ok(None)` in the normal (non-help) mode.
+///
+/// The model is the generated token list: flags, `--k=v` opts, and
+/// positionals are all declared and taken, so nothing may remain for
+/// `finish()` to complain about.
+#[test]
+fn finish_ok_when_all_args_consumed() -> noprop::TestResult {
+    use std::cell::Cell;
+    let observed_mixed = Cell::new(false);
+    noprop::Runner::new(0x5EED_CAFE).run(128, |ctx| {
+        // Shuffled prefixes so the chosen flags / opts are unique.
+        let mut flag_order: Vec<usize> = (0..FLAG_POOL.len()).collect();
+        for i in 0..flag_order.len() {
+            let swap = noprop::sample_usize_in(ctx, i..flag_order.len());
+            flag_order.swap(i, swap);
+        }
+        let mut opt_order: Vec<usize> = (0..OPT_POOL.len()).collect();
+        for i in 0..opt_order.len() {
+            let swap = noprop::sample_usize_in(ctx, i..opt_order.len());
+            opt_order.swap(i, swap);
+        }
+        let n_flags = noprop::sample_usize_in(ctx, 0..=2);
+        let n_opts = noprop::sample_usize_in(ctx, 0..=2);
+        let n_pos = noprop::sample_usize_in(ctx, 0..=2);
+        // Token list: flags, then opts, then positionals.
+        let mut args_vec: Vec<String> = Vec::new();
+        for &i in &flag_order[..n_flags] {
+            args_vec.push(format!("--{}", FLAG_POOL[i].0));
+        }
+        for &i in &opt_order[..n_opts] {
+            args_vec.push(format!("--{}={i}", OPT_POOL[i].0));
+        }
+        for i in 0..n_pos {
+            args_vec.push(format!("pos{i}"));
+        }
+        let mut args = raw(&args_vec);
+        for &i in &flag_order[..n_flags] {
+            let (name, short) = FLAG_POOL[i];
+            assert!(
+                noargs::flag(name).short(short).take(&mut args).is_present(),
+                "flag {name} must be present among {args_vec:?}"
+            );
+        }
+        for &i in &opt_order[..n_opts] {
+            let (name, short) = OPT_POOL[i];
+            let opt = noargs::opt(name).short(short).take(&mut args);
+            assert_eq!(
+                opt.value(),
+                i.to_string(),
+                "opt {name} must be taken from {args_vec:?}"
+            );
+        }
+        for i in 0..n_pos {
+            let arg = noargs::arg("<INPUT>").take(&mut args);
+            assert_eq!(
+                arg.value(),
+                format!("pos{i}"),
+                "positional {i} must be taken from {args_vec:?}"
+            );
+        }
+        let finished = args.finish();
+        assert!(
+            matches!(finished, Ok(None)),
+            "with all args consumed, finish() must be Ok(None), got {finished:?}"
+        );
+        if n_flags > 0 && n_opts > 0 && n_pos > 0 {
+            observed_mixed.set(true);
+        }
+        Ok(())
+    })?;
+    assert!(
+        observed_mixed.get(),
+        "no case exercised all three token classes"
+    );
+    Ok(())
+}
+
+/// In the normal (non-help) mode, `finish()` must report the first
+/// unconsumed token as an `UnexpectedArg` error.
+///
+/// The oracle is the generated token list: tokens not claimed by a
+/// declared spec remain in `RawArgs`, so `finish()` must error; when
+/// everything is consumed it must return `Ok(None)`.
+#[test]
+fn finish_errors_on_unconsumed_arg() -> noprop::TestResult {
+    use std::cell::Cell;
+    let observed_extra = Cell::new(false);
+    let observed_clean = Cell::new(false);
+    noprop::Runner::new(0xBAD_C0DE).run(128, |ctx| {
+        // Shuffled flag order: the prefix is consumed by declaration,
+        // the suffix (if any) remains as unexpected flag tokens.
+        let mut flag_order: Vec<usize> = (0..FLAG_POOL.len()).collect();
+        for i in 0..flag_order.len() {
+            let swap = noprop::sample_usize_in(ctx, i..flag_order.len());
+            flag_order.swap(i, swap);
+        }
+        let n_consume = noprop::sample_usize_in(ctx, 0..=2);
+        let mut args_vec: Vec<String> = flag_order[..n_consume]
+            .iter()
+            .map(|&i| format!("--{}", FLAG_POOL[i].0))
+            .collect();
+        // Extra tokens: leftover flag names, opt tokens, or bare words.
+        // The flag names are drawn from the shuffled suffix so they can
+        // never collide with the consumed flags.
+        let n_extra = sample_noise_count(ctx, 4);
+        let mut suffix_idx = 0;
+        for _ in 0..n_extra {
+            let kind = noprop::sample_weighted_index(ctx, &[1, 1, 1]);
+            let token = match kind {
+                0 => {
+                    let i = flag_order[n_consume + suffix_idx % flag_order[n_consume..].len()];
+                    suffix_idx += 1;
+                    format!("--{}", FLAG_POOL[i].0)
+                }
+                1 => format!(
+                    "--{}={}",
+                    OPT_POOL[suffix_idx % OPT_POOL.len()].0,
+                    suffix_idx
+                ),
+                _ => format!("word{}", noprop::sample_usize_in(ctx, 0..1_000)),
+            };
+            suffix_idx += 1;
+            args_vec.push(token);
+        }
+        let mut args = raw(&args_vec);
+        for &i in &flag_order[..n_consume] {
+            let _ = noargs::flag(FLAG_POOL[i].0).take(&mut args);
+        }
+        let finished = args.finish();
+        if n_extra > 0 {
+            assert!(
+                matches!(finished, Err(noargs::Error::UnexpectedArg { .. })),
+                "unconsumed tokens must produce UnexpectedArg, got {finished:?}"
+            );
+            observed_extra.set(true);
+        } else {
+            assert!(
+                matches!(finished, Ok(None)),
+                "with nothing left, finish() must be Ok(None), got {finished:?}"
+            );
+            observed_clean.set(true);
+        }
+        Ok(())
+    })?;
+    assert!(observed_extra.get(), "no case exercised extra tokens");
+    assert!(
+        observed_clean.get(),
+        "no case exercised a fully consumed finish"
+    );
+    Ok(())
+}
+
+/// Repeated `take`s of the same opt spec consume the matching tokens
+/// in order: each `take` yields the first unconsumed match with the
+/// correct index, and the spec reports `Opt::None` once exhausted.
+///
+/// Both the `--k=v` form (immediate return in the parser) and the
+/// `--k v` form (pending-value return) are exercised, since they take
+/// different code paths in the parser.
+#[test]
+fn repeated_opt_take_consumes_in_order() -> noprop::TestResult {
+    use std::cell::Cell;
+    let observed_multi = Cell::new(false);
+    let observed_equals = Cell::new(false);
+    let observed_separate = Cell::new(false);
+    noprop::Runner::new(0x0D_F00D).run(128, |ctx| {
+        let idx = noprop::sample_usize_in(ctx, 0..OPT_POOL.len());
+        let (name, short) = OPT_POOL[idx];
+        let m = noprop::sample_with_boundaries(
+            ctx,
+            &[1usize, 2, 4],
+            noprop::Ratio::one_nth(4),
+            |ctx| noprop::sample_usize_in(ctx, 1..=4),
+        );
+        let use_equals = noprop::sample_bool(ctx);
+        let args_vec: Vec<String> = if use_equals {
+            (0..m).map(|i| format!("--{name}={i}")).collect()
+        } else {
+            let mut v = Vec::new();
+            for i in 0..m {
+                v.push(format!("--{name}"));
+                v.push(i.to_string());
+            }
+            v
+        };
+        let mut args = raw(&args_vec);
+        for i in 0..m {
+            let opt = noargs::opt(name).short(short).take(&mut args);
+            let expected_index = if use_equals {
+                i + 1
+            } else {
+                // prog, then per take: `--k` at 2i+1, value at 2i+2.
+                2 * i + 1
+            };
+            assert!(
+                matches!(opt, Opt::Long { index, .. } if index == expected_index),
+                "take {i} must consume token at index {expected_index}, got {opt:?}"
+            );
+            assert_eq!(
+                opt.value(),
+                i.to_string(),
+                "take {i} must recover its own value"
+            );
+        }
+        let exhausted = noargs::opt(name).short(short).take(&mut args);
+        assert!(
+            matches!(exhausted, Opt::None { .. }),
+            "after {m} takes the spec must be exhausted, got {exhausted:?}"
+        );
+        if m >= 2 {
+            observed_multi.set(true);
+        }
+        if use_equals {
+            observed_equals.set(true);
+        } else {
+            observed_separate.set(true);
+        }
+        Ok(())
+    })?;
+    assert!(observed_multi.get(), "no case exercised multiple takes");
+    assert!(observed_equals.get(), "no case exercised the `--k=v` form");
+    assert!(
+        observed_separate.get(),
+        "no case exercised the `--k v` form"
+    );
     Ok(())
 }
