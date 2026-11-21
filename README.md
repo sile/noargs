@@ -92,28 +92,66 @@ fn main() -> noargs::Result<()> {
     }
     noargs::HELP_FLAG.take_help(&mut args);
 
-    // Handle subcommands
+    // Handle subcommands.
+    //
+    // `args` is moved into the matching handler, so each arm leaves with `return`.
     if noargs::cmd("start")
         .doc("Start the service")
         .take(&mut args)
         .is_present()
     {
-        let port: u16 = noargs::opt("port")
-            .short('p')
-            .default("8080")
-            .take(&mut args)
-            .then(|o| o.value().parse())?;
-        println!("Starting service on port {}", port);
-    } else if noargs::cmd("stop")
+        return run_start(args);
+    }
+    if noargs::cmd("stop")
         .doc("Stop the service")
         .take(&mut args)
         .is_present()
     {
+        // No application specific args: `finish` still runs here, not in `main`.
+        if let Some(help) = args.finish()? {
+            print!("{help}");
+            return Ok(());
+        }
         println!("Stopping service");
-    } else if let Some(help) = args.finish()? {
+        return Ok(());
+    }
+
+    // No subcommand: top-level help, and the top-level argument checks.
+    if let Some(help) = args.finish()? {
         print!("{help}");
     }
 
     Ok(())
 }
+
+fn run_start(mut args: noargs::RawArgs) -> noargs::Result<()> {
+    let port: u16 = noargs::opt("port")
+        .short('p')
+        .default("8080")
+        .take(&mut args)
+        .then(|o| o.value().parse())?;
+
+    // Help text and the `start` argument checks, before any work is done.
+    if let Some(help) = args.finish()? {
+        print!("{help}");
+        return Ok(());
+    }
+
+    println!("Starting service on port {}", port);
+    Ok(())
+}
 ```
+
+A handler takes `RawArgs` by value and calls `finish` itself, after its `take`s
+and before it does any work. `finish` consumes `self`, so it can be called once
+per command line; taking the instance by value is what puts that call inside the
+handler and lets the compiler count it. Because `finish` runs first, a stray
+argument is reported before the command touches anything, and because it is the
+single place that both builds the help text and checks the arguments, its
+`Some(help)` return is the only branching a handler needs.
+
+Calling `take` after `finish` must not compile. `finish` settles what the
+command line meant: after it, a token already reported as unexpected could
+become legitimate, and in help mode the `take`s succeed on values nobody
+supplied. The value form makes that a compile error instead of a rule to
+remember.
