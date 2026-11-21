@@ -238,38 +238,73 @@ impl Default for OptSpec {
 
 /// A named argument with value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[allow(missing_docs)]
 pub enum Opt {
+    /// A value taken from a `--name VALUE` or `--name=VALUE` form.
     Long {
+        /// The declaration this value was taken for.
         spec: OptSpec,
+
+        /// The metadata of the [`RawArgs`] the value came from.
         metadata: Metadata,
+
+        /// The position of the raw argument in [`RawArgs`].
         index: usize,
+
+        /// The taken value.
         value: String,
     },
+    /// A value taken from a `-n VALUE` or `-nVALUE` form.
     Short {
+        /// The declaration this value was taken for.
         spec: OptSpec,
+
+        /// The metadata of the [`RawArgs`] the value came from.
         metadata: Metadata,
+
+        /// The position of the raw argument in [`RawArgs`].
         index: usize,
+
+        /// The taken value.
         value: String,
     },
+    /// A value taken from the environment variable declared with [`OptSpec::env()`].
     Env {
+        /// The declaration this value was taken for.
         spec: OptSpec,
+
+        /// The metadata of the [`RawArgs`] the declaration was taken from.
         metadata: Metadata,
+
+        /// The value read from the environment variable.
         value: String,
     },
+    /// The declared default value, used when neither the raw arguments nor the environment supplied one.
     Default {
+        /// The declaration this value was produced for.
         spec: OptSpec,
+
+        /// The metadata of the [`RawArgs`] the declaration was taken from.
         metadata: Metadata,
     },
+    /// The declared example value, used while generating help text.
     Example {
+        /// The declaration this value was produced for.
         spec: OptSpec,
+
+        /// The metadata of the [`RawArgs`] the declaration was taken from.
         metadata: Metadata,
     },
+    /// The name was given on the command line but no value followed it.
     MissingValue {
+        /// The declaration the name was matched against.
         spec: OptSpec,
+
+        /// `true` if the name was given in long form (`--name`), `false` for short form (`-n`).
         long: bool,
     },
+    /// No value: the option was not supplied and no default is declared.
     None {
+        /// The declaration this result was produced for.
         spec: OptSpec,
     },
 }

@@ -95,6 +95,7 @@
 //! }
 //! ```
 #![warn(missing_docs)]
+#![deny(unsafe_code)]
 mod arg;
 mod args;
 mod cmd;

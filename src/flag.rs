@@ -131,12 +131,33 @@ impl Default for FlagSpec {
 
 /// A named argument without value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[allow(missing_docs)]
 pub enum Flag {
-    Long { spec: FlagSpec, index: usize },
-    Short { spec: FlagSpec, index: usize },
-    Env { spec: FlagSpec },
-    None { spec: FlagSpec },
+    /// Given as `--name`.
+    Long {
+        /// The declaration this flag was taken for.
+        spec: FlagSpec,
+
+        /// The position of the raw argument in [`RawArgs`].
+        index: usize,
+    },
+    /// Given as `-n`, possibly inside a combined form such as `-abc`.
+    Short {
+        /// The declaration this flag was taken for.
+        spec: FlagSpec,
+
+        /// The position of the raw argument in [`RawArgs`].
+        index: usize,
+    },
+    /// Set through the environment variable declared with [`FlagSpec::env()`].
+    Env {
+        /// The declaration this flag was taken for.
+        spec: FlagSpec,
+    },
+    /// Not given.
+    None {
+        /// The declaration this result was produced for.
+        spec: FlagSpec,
+    },
 }
 
 impl Flag {
@@ -217,6 +238,10 @@ mod tests {
         let flag = crate::flag("foo").env("TEST_ENV_FLAG_FOO");
         assert!(matches!(flag.take(&mut args), Flag::None { .. }));
 
+        #[expect(
+            unsafe_code,
+            reason = "std::env::set_var is unsafe in edition 2024, and this test needs it to exercise the env fallback"
+        )]
         unsafe {
             std::env::set_var("TEST_ENV_FLAG_FOO", "1");
         }

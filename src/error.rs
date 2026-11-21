@@ -8,36 +8,64 @@ use crate::{Arg, Metadata, Opt, OptSpec, RawArgs, args::Taken, formatter::Format
 /// deliberately does not implement the [`std::error::Error`] and [`std::fmt::Display`] traits.
 ///
 /// Additionally, any external errors that implement [`std::fmt::Display`] can be converted into this error.
-#[allow(missing_docs)]
 #[non_exhaustive]
 pub enum Error {
+    /// An argument was left over that no declaration consumed.
     UnexpectedArg {
+        /// The metadata of the [`RawArgs`] that produced the error.
         metadata: Metadata,
+
+        /// The left-over raw argument.
         raw_arg: String,
     },
+    /// A subcommand was named that no declaration matched.
     UndefinedCommand {
+        /// The metadata of the [`RawArgs`] that produced the error.
         metadata: Metadata,
+
+        /// The unmatched subcommand name.
         raw_arg: String,
     },
+    /// A subcommand was expected but none was named.
     MissingCommand {
+        /// The metadata of the [`RawArgs`] that produced the error.
         metadata: Metadata,
     },
+    /// A positional argument was present but its value failed validation or conversion.
     InvalidArg {
+        /// The argument whose value was rejected.
         arg: Box<Arg>,
+
+        /// Why the value was rejected.
         reason: String,
     },
+    /// A positional argument had no value and no default is declared.
     MissingArg {
+        /// The argument that was missing.
         arg: Box<Arg>,
     },
+    /// An option was present but its value failed validation or conversion.
     InvalidOpt {
+        /// The option whose value was rejected.
         opt: Box<Opt>,
+
+        /// Why the value was rejected.
         reason: String,
     },
+    /// An option had no value and no default is declared.
     MissingOpt {
+        /// The option that was missing.
         opt: Box<Opt>,
     },
+    /// An application specific error, created by [`Error::other()`] or by a `From` conversion.
+    ///
+    /// `metadata` is `None` for an error that arrived through `From` from an external
+    /// error, in which case the rendered message omits the help hint.
     Other {
+        /// The metadata of the [`RawArgs`] the error was created from, if any.
         metadata: Option<Metadata>,
+
+        /// The rendered message.
         error: String,
     },
 }

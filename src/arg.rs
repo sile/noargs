@@ -107,23 +107,40 @@ impl Default for ArgSpec {
 
 /// A positional argument.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[allow(missing_docs)]
 pub enum Arg {
+    /// A value taken from the raw arguments.
     Positional {
+        /// The declaration this value was taken for.
         spec: ArgSpec,
+
+        /// The metadata of the [`RawArgs`] the value came from.
         metadata: Metadata,
+
+        /// The position of the raw argument in [`RawArgs`].
         index: usize,
+
+        /// The taken value.
         value: String,
     },
+    /// The declared default value, used when no raw argument supplied one.
     Default {
+        /// The declaration this value was produced for.
         spec: ArgSpec,
+
+        /// The metadata of the [`RawArgs`] the declaration was taken from.
         metadata: Metadata,
     },
+    /// The declared example value, used while generating help text.
     Example {
+        /// The declaration this value was produced for.
         spec: ArgSpec,
+
+        /// The metadata of the [`RawArgs`] the declaration was taken from.
         metadata: Metadata,
     },
+    /// No value: the argument was not supplied and no default is declared.
     None {
+        /// The declaration this result was produced for.
         spec: ArgSpec,
     },
 }

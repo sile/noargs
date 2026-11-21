@@ -58,10 +58,20 @@ impl Default for CmdSpec {
 
 /// A subcommand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[allow(missing_docs)]
 pub enum Cmd {
-    Some { spec: CmdSpec, index: usize },
-    None { spec: CmdSpec },
+    /// The subcommand was named on the command line.
+    Some {
+        /// The declaration the name was matched against.
+        spec: CmdSpec,
+
+        /// The position of the raw argument in [`RawArgs`].
+        index: usize,
+    },
+    /// The subcommand was not named.
+    None {
+        /// The declaration this result was produced for.
+        spec: CmdSpec,
+    },
 }
 
 impl Cmd {

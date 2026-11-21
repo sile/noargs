@@ -5,10 +5,10 @@ edition = "2024"
 rust-version = "1.88"
 license = "MIT"
 description = "Imperative command-line argument parser library with no dependencies, no macros, and no implicit I/O"
-homepage = "https://github.com/sile/noargs"
 repository = "https://github.com/sile/noargs"
 readme = "README.md"
 categories = [ "command-line-interface" ]
+include = ["/Cargo.toml", "/LICENSE*", "/README.md", "/examples/**/*.rs", "/src/**/*.rs", "/tests/**/*.rs"]
 
 [dependencies]
 
