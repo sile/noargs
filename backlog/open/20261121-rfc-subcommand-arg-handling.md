@@ -1,0 +1,201 @@
+# RFC: Hand `RawArgs` to the subcommand, and check inside the handler
+
+## Summary
+
+A subcommand handler should take `RawArgs` by value, run every `take` it needs, and
+call `finish` itself -- for the help text and for the argument checks -- before
+it does any of its work. This settles where `finish` is called when there are
+several subcommands, and it lets a bad command line be reported before the
+command acts. The library keeps its signatures: `finish` still consumes
+`self`, and nothing in `src/` changes. What changes is how subcommands are
+dispatched and handled, shown in `examples/subcommands.rs`.
+
+This answers the feedback in
+[feedback-231009](../closed/20261121-feedback-231009.md).
+
+## Motivation
+
+`finish(self)` consumes `self`, so it can be called once, at the end. With
+subcommands, "the end" is in `main`, after every handler has returned. A
+handler therefore cannot check its own arguments, and the whole command line is
+checked only after the command has run.
+
+Concretely, `tool create NAME EXTRA` reports `EXTRA` as unconsumed, exits 1, and
+does so after the file for `NAME` has been written. A command that moves files
+fares the same way: a mistyped command line changes the file system and then
+fails. The command line was wrong the whole time, yet the change happened first.
+
+There is a second cost today. Because `finish` is called in `main`, the help text
+can only be produced there too, and a handler that does its work before returning
+runs while `help_mode` is set. Every handler therefore carries the same guard:
+
+```rust
+if args.metadata().help_mode {
+    return Ok(true);
+}
+```
+
+Nothing enforces it. A handler that leaves it out prints to stdout while the
+user asked for help, and the tests do not catch it. Moving the `finish` call into
+the handler turns this guard into the call that already has to be there.
+
+## Design
+
+`main` dispatches on the subcommand and hands `RawArgs` over by value:
+
+```rust
+fn main() -> noargs::Result<()> {
+    let mut args = noargs::raw_args();
+    args.metadata_mut().app_name = env!("CARGO_PKG_NAME");
+    args.metadata_mut().app_description = env!("CARGO_PKG_DESCRIPTION");
+
+    if noargs::VERSION_FLAG.take(&mut args).is_present() {
+        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+    noargs::HELP_FLAG.take_help(&mut args);
+
+    if noargs::cmd("hello").doc("Print a greeting").take(&mut args).is_present() {
+        return run_hello(args);
+    }
+    if noargs::cmd("sum").doc("Add two integers").take(&mut args).is_present() {
+        return run_sum(args);
+    }
+    if noargs::cmd("echo").doc("Print a message").take(&mut args).is_present() {
+        return run_echo(args);
+    }
+
+    // No subcommand: top-level help, and the top-level argument checks.
+    if let Some(help) = args.finish()? {
+        print!("{help}");
+    }
+    Ok(())
+}
+```
+
+Each handler takes `RawArgs` by value, does its `take`s, calls `finish`, and only
+then does its work:
+
+```rust
+fn run_hello(mut args: noargs::RawArgs) -> noargs::Result<()> {
+    let loud = noargs::flag("loud")
+        .short('l')
+        .doc("Print greeting in upper case")
+        .take(&mut args)
+        .is_present();
+    let name: String = noargs::arg("<NAME>")
+        .doc("Name to greet")
+        .example("Alice")
+        .take(&mut args)
+        .then(|a| a.value().parse())?;
+
+    // Help text for `hello`, and the `hello` argument checks. Both happen here.
+    if let Some(help) = args.finish()? {
+        print!("{help}");
+        return Ok(());
+    }
+
+    let message = format!("Hello, {name}!");
+    if loud {
+        println!("{}", message.to_uppercase());
+    } else {
+        println!("{message}");
+    }
+    Ok(())
+}
+```
+
+The shape has three properties worth naming:
+
+- `finish` is called exactly once on every path. `main` owns the instance until
+  it dispatches; afterwards the handler owns it. Ownership makes the count a
+  compile-time fact rather than a convention.
+- `finish` does the two jobs that were separate before. `Some(help)` means the
+  user asked for help, and `None` means the arguments were checked and are fine.
+  The old `help_mode` guard and the old end-of-`main` check become one call.
+- Every side effect sits below the `finish` call, so a stray argument or a
+  missing required argument is reported before anything is written or moved.
+
+No signature in `src/` changes. `RawArgs::finish` still takes `self`, `take`
+still takes `&mut RawArgs`, and the `Taken` accessors are untouched. This RFC is
+about the order the calls are made in, which the library already permits, and
+`examples/subcommands.rs` is where that order is written down.
+
+One consequence of `RawArgs` moving into the handler is that the dispatch arms
+leave with `return`, since `args` is gone once it has been moved. The example
+above is written that way.
+
+## Alternatives
+
+Make `finish` take `&self` instead. The handler would keep `&mut RawArgs` and
+call `args.finish()?` without giving the instance up. This reaches the same
+result for this RFC -- the checks still run before the side effects -- but it
+reaches it by widening the contract: after the change, `take`, `finish`, `take`,
+`finish` would compile. Today the type rules that out, and the rule is worth
+keeping until something needs the freedom it forbids. The narrow change can be
+made later without breaking callers; the wide one cannot be taken back without
+one. It is also a smaller diff, since it leaves `examples/` and `src/` alone,
+but it does not remove the per-handler `help_mode` guard, which is the other
+half of the motivation.
+
+Add a `validate(&self)` that runs the checks without consuming `self`, and leave
+`finish` as the end-of-parsing call. Two entry points mean two places to
+remember and a question the design does not answer today: what `validate`
+returns in help mode. `noargs` is small on purpose, and an extra public method is
+the largest thing this library can gain.
+
+Give subcommands a scope, so the checks run when the scope ends (a closure-based
+`args.subcommand(|args| ...)`). This enforces the order structurally, but it adds
+the DSL shape that `noargs` exists to avoid: the handler would become a closure
+that borrows and returns, and the dispatch in `main` would stop being ordinary
+`if`s. It is the most machinery for the smallest remaining problem.
+
+## Open questions
+
+- Is `run_*(mut args: RawArgs)` the right signature, or should handlers take
+  `&mut RawArgs` and the dispatch keep the instance? The value form is what lets
+  `finish(self)` be called inside the handler, so it is what this RFC needs; the
+  reference form only works with the `&self` alternative above.
+- Are there handlers that need to `take` again after `finish`? Nothing in this
+  library does today, and the value form makes it a compile error rather than a
+  silent mistake. If such a handler turns up, the `&self` alternative is the
+  answer, and this RFC should be cited when it is made.
+- Should `RawArgs` become `Clone` so a handler can be given a copy? There is no
+  plan to do so, and the value form is what makes that unnecessary.
+
+## Outcome
+
+<!-- NOKORI_TODO: the one section written later, when `nokori close` moves
+this file. It stays empty while the RFC is open, this comment and all, and
+the comment is deleted in the same edit that writes the section -- which is
+the close, since `close` refuses a file whose outcome is still empty.
+
+The sections above are written before the item moves: by the time `nokori
+close` moves this file, they are written and their comments are gone.
+
+Those sections may be rewritten as long as the item is open, as often as the
+understanding changes. What they may not become is a description of work
+already done.
+
+Say whether the RFC was accepted or rejected, and why. When it is accepted,
+name the change that implements it, or the item that does, if the work happens
+somewhere else.
+
+To refer to another item, link it:
+[bug-empty-input](../closed/20261114-bug-empty-input.md). Link only an item
+that is already closed: never link one that is still open, not even as
+background. The rule is about this section and not the file: a closed item
+may not cite an open one, while an open item may cite either, so a section
+above this one may link an open item. Run `nokori explain references` for the
+paths and the rule.
+
+An accepted RFC can still be overturned later. Say so in the later item and
+cite this one; do not edit this file afterwards to follow it.
+
+Once this section is written, treat the file as closed: do not
+edit any part of it again, and append nothing later. If something turns up
+later, leave the file as it is and open a new item that cites this one and
+acts on it.
+
+Delete this comment in the same edit that writes the section, and commit both
+together with the move. -->
