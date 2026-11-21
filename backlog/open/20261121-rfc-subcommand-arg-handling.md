@@ -129,14 +129,33 @@ above is written that way.
 
 Make `finish` take `&self` instead. The handler would keep `&mut RawArgs` and
 call `args.finish()?` without giving the instance up. This reaches the same
-result for this RFC -- the checks still run before the side effects -- but it
-reaches it by widening the contract: after the change, `take`, `finish`, `take`,
-`finish` would compile. Today the type rules that out, and the rule is worth
-keeping until something needs the freedom it forbids. The narrow change can be
-made later without breaking callers; the wide one cannot be taken back without
-one. It is also a smaller diff, since it leaves `examples/` and `src/` alone,
-but it does not remove the per-handler `help_mode` guard, which is the other
-half of the motivation.
+result for this RFC -- the checks still run before the side effects -- and it is
+a smaller diff, since it leaves `examples/` and `src/` alone. Widening the
+signature is where it stops being acceptable: after the change, `take`,
+`finish`, `take` would compile.
+
+That sequence must not compile, and the reason is semantic, not stylistic.
+`finish` is not a query but a state transition: it decides what the command line
+meant. `Error::check_unexpected_arg` judges the buffer as it stands, so a `take`
+after `finish` would make a token that was reported as unexpected become a
+legitimate argument later, and the same instance would answer "invalid" and
+"valid" at different moments. In help mode it is worse: `finish` returns
+`Ok(Some(help))` and the `take`s in that mode yield `Default`/`Example` without
+reading argv, so a `take` after it would succeed on a value nobody supplied. The
+`Taken` log turns into "the last value read for this spec" rather than the record
+of how the argument was actually given, and which entry is true depends on the
+call order. In one sentence: after `finish`, the meaning of the buffer is
+settled, and reading it again asks a question whose answer no longer means
+anything.
+
+Leaving that to a written rule -- "do not `take` after `finish`" -- would work,
+but it replaces a fact the compiler checks with a convention every caller has to
+know, and a convention is exactly what a new handler forgets. Keep `finish(self)`.
+The narrow form (`&self`) is not a change to be made when something needs it; it
+is the form that lets the forbidden sequence back in, so it is not the answer
+even then. Its remaining merit -- that it does not remove the per-handler
+`help_mode` guard -- is the other half of the motivation, so it does not rescue
+the alternative either.
 
 Add a `validate(&self)` that runs the checks without consuming `self`, and leave
 `finish` as the end-of-parsing call. Two entry points mean two places to
@@ -158,8 +177,11 @@ that borrows and returns, and the dispatch in `main` would stop being ordinary
   reference form only works with the `&self` alternative above.
 - Are there handlers that need to `take` again after `finish`? Nothing in this
   library does today, and the value form makes it a compile error rather than a
-  silent mistake. If such a handler turns up, the `&self` alternative is the
-  answer, and this RFC should be cited when it is made.
+  silent mistake. The answer if one turns up is that the handler is wrong, not
+  that the signature is: what it needs to read after `finish` is decided before
+  `finish`, so the `take` belongs above the call. This is why the `&self`
+  alternative is rejected outright rather than postponed -- it would answer this
+  question by removing the constraint that makes the ordering meaningful.
 - Should `RawArgs` become `Clone` so a handler can be given a copy? There is no
   plan to do so, and the value form is what makes that unnecessary.
 
