@@ -47,9 +47,10 @@ The crate is built around one pattern — there is no declarative schema:
    than the real input.
 5. Call `.take(&mut args)` on each spec to consume matching tokens from the
    buffer. `.take()` mutates `RawArgs`; tokens are removed as they are claimed.
-6. Call `args.finish()?` at the end — in help mode it returns
-   `Ok(Some(help_text))`; otherwise it errors on unclaimed tokens or missing
-   subcommand.
+6. Call `args.finish()?` — in help mode it returns `Ok(Some(help_text))`;
+   otherwise it errors on unclaimed tokens or missing subcommand. With
+   subcommands, this call belongs at the end of the handler that matched, not
+   at the end of `main` (see below).
 
 ## Choosing the right API
 
@@ -90,9 +91,14 @@ The crate is built around one pattern — there is no declarative schema:
 - **Help mode collapses `take`.** Once `help_mode` is on, `ArgSpec::take` /
   `OptSpec::take` return `Default`/`Example`/`None` variants without scanning
   argv. You still need to call each `.take()` so it appears in the help log;
-  but after `args.finish()?` returns `Some(help)`, print it and return early.
-  Guard application logic behind `if args.metadata().help_mode { return … }`
-  inside subcommand handlers that early-return before `finish()`.
+  then `args.finish()?` returns `Some(help)` — print it and return early, without
+  any separate work.
+- **Never `take` after `finish`.** `finish` settles what the command line
+  meant: a token it already reported as unexpected would become legitimate on a
+  later `take`, and in help mode that `take` would succeed on a value nobody
+  supplied. `finish` takes `self` (not `&self`) so that this does not compile;
+  do not work around it by keeping the instance alive. If a handler wants to read
+  something after `finish`, the read belongs above the call.
 - **`.then(f)` is "required".** It returns `Err(Error::MissingArg/MissingOpt)`
   when the value isn't present, so use it for required args or for required
   parsing after `.default()`. Use `.present_and_then(f)` for optional values
@@ -189,7 +195,8 @@ while let Some(v) = rest_spec
 }
 ```
 
-Subcommand routing with per-command scope:
+Subcommand routing: `RawArgs` is moved into the handler, which calls `finish`
+itself before doing any work:
 
 ```rust
 fn main() -> noargs::Result<()> {
@@ -203,31 +210,45 @@ fn main() -> noargs::Result<()> {
     }
     noargs::HELP_FLAG.take_help(&mut args);
 
-    let _ = try_run_hello(&mut args)? || try_run_sum(&mut args)?;
+    // `args` is moved into the handler, so each arm leaves with `return`.
+    if noargs::cmd("hello").doc("Print a greeting").take(&mut args).is_present() {
+        return run_hello(args);
+    }
+    if noargs::cmd("sum").doc("Add two integers").take(&mut args).is_present() {
+        return run_sum(args);
+    }
+
+    // No subcommand: top-level help, and the top-level argument checks.
     if let Some(help) = args.finish()? {
         print!("{help}");
     }
     Ok(())
 }
 
-fn try_run_hello(args: &mut noargs::RawArgs) -> noargs::Result<bool> {
-    if !noargs::cmd("hello").doc("Print a greeting").take(args).is_present() {
-        return Ok(false);
-    }
-    let loud = noargs::flag("loud").short('l').take(args).is_present();
+fn run_hello(mut args: noargs::RawArgs) -> noargs::Result<()> {
+    let loud = noargs::flag("loud").short('l').take(&mut args).is_present();
     let name: String = noargs::arg("<NAME>")
         .example("Alice")
-        .take(args)
+        .take(&mut args)
         .then(|a| a.value().parse())?;
 
-    // IMPORTANT: skip real work while building help text.
-    if args.metadata().help_mode { return Ok(true); }
+    // Help text for `hello` AND its argument checks, both from this one call
+    // and both before anything is printed.
+    if let Some(help) = args.finish()? {
+        print!("{help}");
+        return Ok(());
+    }
 
     let msg = format!("Hello, {name}!");
     println!("{}", if loud { msg.to_uppercase() } else { msg });
-    Ok(true)
+    Ok(())
 }
 ```
+
+`finish(self)` consumes the instance, so the value form is what lets the handler
+call it — and the compiler then guarantees exactly one call per command line.
+Every side effect sits below `finish`, so `prog hello Alice EXTRA` reports
+`EXTRA` without printing the greeting.
 
 Custom validation via `.then`:
 
@@ -264,9 +285,9 @@ complete patterns — read them end-to-end when a snippet isn't enough:
 - `examples/arrays.rs` — repeated `opt` and positional-array patterns using
   `while let Some(v) = spec.take(...).present_and_then(...)? { ... }`, plus
   the `<NAME>` / `[NAME]...` naming convention.
-- `examples/subcommands.rs` — `try_run_*` command routing pattern (bool
-  short-circuit chain), per-command scoped flags/args, and the
-  `if args.metadata().help_mode { return Ok(true); }` guard inside handlers.
+- `examples/subcommands.rs` — subcommand dispatch that moves `RawArgs` into
+  each `run_*` handler, which calls `finish` itself before doing any work, plus
+  per-command flags/args.
 
 ## Practical hints
 
