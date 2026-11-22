@@ -142,16 +142,7 @@ fn run_start(mut args: noargs::RawArgs) -> noargs::Result<()> {
 }
 ```
 
-A handler takes `RawArgs` by value and calls `finish` itself, after its `take`s
-and before it does any work. `finish` consumes `self`, so it can be called once
-per command line; taking the instance by value is what puts that call inside the
-handler and lets the compiler count it. Because `finish` runs first, a stray
-argument is reported before the command touches anything, and because it is the
-single place that both builds the help text and checks the arguments, its
-`Some(help)` return is the only branching a handler needs.
-
-Calling `take` after `finish` must not compile. `finish` settles what the
-command line meant: after it, a token already reported as unexpected could
-become legitimate, and in help mode the `take`s succeed on values nobody
-supplied. The value form makes that a compile error instead of a rule to
-remember.
+A subcommand handler takes `RawArgs` by value and calls `finish` itself, after
+its `take`s and before it does any work. A stray argument is then reported
+before the command touches anything, and `Some(help)` is the only branch the
+handler needs.
