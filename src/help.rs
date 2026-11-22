@@ -215,8 +215,8 @@ impl<'a> HelpBuilder<'a> {
                 width = width
             ));
             for line in self.doc_lines(cmd.doc) {
-                self.fmt
-                    .write(&format!("{:offset$}{line}{newline}", "", offset = offset));
+                let line = doc_line(line, offset, newline);
+                self.fmt.write(&line);
             }
             self.fmt.write("\n");
         }
@@ -251,8 +251,8 @@ impl<'a> HelpBuilder<'a> {
                 .write(&format!("  {:width$}{newline}", name, width = width));
 
             for line in self.doc_lines(arg.doc) {
-                self.fmt
-                    .write(&format!("{:offset$}{line}{newline}", "", offset = offset));
+                let line = doc_line(line, offset, newline);
+                self.fmt.write(&line);
             }
             if let Some(default) = arg.default {
                 self.fmt.write(&format!(
@@ -331,8 +331,8 @@ impl<'a> HelpBuilder<'a> {
             self.fmt
                 .write(&format!("  {:width$}{newline}", name, width = width));
             for line in self.doc_lines(doc) {
-                self.fmt
-                    .write(&format!("{:offset$}{line}{newline}", "", offset = offset));
+                let line = doc_line(line, offset, newline);
+                self.fmt.write(&line);
             }
             if let Some(env) = env {
                 self.fmt.write(&format!(
@@ -378,6 +378,14 @@ impl<'a> HelpBuilder<'a> {
             Taken::Arg(arg) => arg.spec().example.is_some(),
             _ => false,
         })
+    }
+}
+
+fn doc_line(line: &str, offset: usize, newline: &str) -> String {
+    if line.is_empty() {
+        newline.to_string()
+    } else {
+        format!("{:offset$}{line}{newline}", "", offset = offset)
     }
 }
 
@@ -701,6 +709,59 @@ Options:
     should included
 "#
         );
+    }
+
+    #[test]
+    fn blank_doc_line_has_no_trailing_whitespace() {
+        let mut args = test_args(&["test"]);
+        args.metadata_mut().app_description = "";
+        args.metadata_mut().full_help = true;
+        HELP_FLAG.take(&mut args);
+        crate::cmd("put")
+            .doc("Put an entry\n\nDetailed description of put")
+            .take(&mut args);
+        crate::arg("<KEY>")
+            .doc("A key\n\nDetail is key")
+            .example("hi")
+            .take(&mut args);
+        crate::opt("foo")
+            .doc("An integer\n\nDetail is foo")
+            .take(&mut args);
+
+        let help = HelpBuilder::new(&args, false).build();
+        println!("{help}");
+        assert_eq!(
+            help,
+            r#"Usage: <APP_NAME> [OPTIONS] <KEY> <COMMAND>
+
+Example:
+  $ <APP_NAME> hi
+
+Commands:
+  put
+    Put an entry
+
+    Detailed description of put
+
+Arguments:
+  <KEY>
+    A key
+
+    Detail is key
+
+Options:
+  --help, -h
+    Print help ('--help' for full help, '-h' for summary)
+
+  --foo <VALUE>
+    An integer
+
+    Detail is foo
+"#
+        );
+        for line in help.lines() {
+            assert_eq!(line, line.trim_end(), "trailing whitespace: {line:?}");
+        }
     }
 
     #[test]
